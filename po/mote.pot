@@ -338,9 +338,6 @@ msgstr ""
 msgid "Allow Unencrypted"
 msgstr ""
 
-msgid "The password and the session cross the network as they are"
-msgstr ""
-
 msgid "View Only"
 msgstr ""
 

@@ -267,9 +267,6 @@ impl Component for Editor {
                 .unwrap_or_default() as u32,
         );
         rows.allow_unencrypted.set_title(&i18n("Allow Unencrypted"));
-        rows.allow_unencrypted.set_subtitle(&i18n(
-            "The password and the session cross the network as they are",
-        ));
         rows.allow_unencrypted.set_active(c.allow_unencrypted);
         rows.view_only.set_title(&i18n("View Only"));
         rows.view_only.set_active(c.view_only);
