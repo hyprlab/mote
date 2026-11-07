@@ -431,6 +431,19 @@ msgstr "Deux fois moins de détails de couleur : le texte coloré est moins net
 msgid "About twice the bandwidth; KRdp turns it down"
 msgstr "Environ deux fois plus de bande passante ; KRdp le refuse"
 
+msgid "Lossless"
+msgstr ""
+
+msgid "Low Bandwidth"
+msgstr ""
+
+#, fuzzy
+msgid "About three times the bandwidth"
+msgstr "Environ deux fois plus de bande passante ; KRdp le refuse"
+
+msgid "A softer picture, for half the bandwidth"
+msgstr ""
+
 msgid "Local Network"
 msgstr "Réseau local"
 

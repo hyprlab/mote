@@ -419,6 +419,18 @@ msgstr ""
 msgid "About twice the bandwidth; KRdp turns it down"
 msgstr ""
 
+msgid "Lossless"
+msgstr ""
+
+msgid "Low Bandwidth"
+msgstr ""
+
+msgid "About three times the bandwidth"
+msgstr ""
+
+msgid "A softer picture, for half the bandwidth"
+msgstr ""
+
 msgid "Local Network"
 msgstr ""
 

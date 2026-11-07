@@ -75,7 +75,7 @@ fn order() -> Vec<Source> {
 }
 
 /// A decoder from the first source that has one.
-pub(super) fn decoder() -> Option<(Source, Box<dyn H264Decoder>)> {
+pub(crate) fn decoder() -> Option<(Source, Box<dyn H264Decoder>)> {
     let found = order().into_iter().find_map(|s| s.load().map(|d| (s, d)));
     match &found {
         Some((source, _)) => tracing::info!(target: "mote::stats", "H.264 from {source:?}"),

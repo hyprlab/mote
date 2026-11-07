@@ -372,6 +372,8 @@ mod tests {
         let target = Target {
             protocol: crate::connection::Protocol::Rdp,
             allow_unencrypted: false,
+            vnc_codec: Default::default(),
+            resize: true,
             host: host.into(),
             port: port.parse().expect("port"),
             addresses: vec![(host.into(), port.parse().expect("port"))],

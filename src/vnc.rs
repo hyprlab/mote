@@ -5,6 +5,7 @@
 
 mod decode;
 mod dh;
+mod h264;
 mod handshake;
 mod input;
 mod openssl;
@@ -98,7 +99,16 @@ async fn drive(
         {
             return Ok(Ending::Closed);
         }
-        match session::run(opened.stream, opened.init, events, commands, &mut keys).await {
+        match session::run(
+            opened.stream,
+            opened.init,
+            target,
+            events,
+            commands,
+            &mut keys,
+        )
+        .await
+        {
             Err(Failure::Lost(why)) if target.reconnect => {
                 tracing::info!("the connection dropped ({why}); reconnecting");
                 lost = Some((std::time::Instant::now(), std::time::Duration::from_secs(1)));
@@ -222,10 +232,25 @@ mod tests {
         let server = std::env::var("MOTE_TEST_VNC").expect("MOTE_TEST_VNC");
         let (host, port) = server.rsplit_once(':').expect("host:port");
         let port: u16 = port.parse().expect("port");
+        let size: (u16, u16) = std::env::var("MOTE_TEST_SIZE")
+            .ok()
+            .and_then(|s| {
+                let (w, h) = s.split_once('x')?;
+                Some((w.parse().ok()?, h.parse().ok()?))
+            })
+            .unwrap_or((1024, 768));
         let target = Target {
             protocol: crate::connection::Protocol::Vnc,
             // MOTE_TEST_UNENCRYPTED=1 allows a server without encryption.
             allow_unencrypted: std::env::var_os("MOTE_TEST_UNENCRYPTED").is_some(),
+            // MOTE_TEST_CODEC: best, lossless or low.
+            vnc_codec: match var("MOTE_TEST_CODEC", "best").as_str() {
+                "lossless" => crate::connection::VncCodec::Lossless,
+                "low" => crate::connection::VncCodec::LowBandwidth,
+                _ => crate::connection::VncCodec::Best,
+            },
+            // MOTE_TEST_SIZE=<width>x<height>: ask the server for that size.
+            resize: std::env::var_os("MOTE_TEST_SIZE").is_some(),
             host: host.into(),
             port,
             addresses: vec![(host.into(), port)],
@@ -233,8 +258,8 @@ mod tests {
             username: var("MOTE_TEST_USER", ""),
             password: var("MOTE_TEST_PASSWORD", "mote"),
             domain: String::new(),
-            width: 1024,
-            height: 768,
+            width: size.0,
+            height: size.1,
             scale: 100,
             quality: Default::default(),
             network: Default::default(),
@@ -250,6 +275,17 @@ mod tests {
         };
         let typed = std::env::var("MOTE_TEST_TYPE").ok();
         let (handle, mut events) = start(target);
+        // MOTE_TEST_SECONDS: stay that long, for the measurements.
+        let stay = std::env::var("MOTE_TEST_SECONDS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok());
+        if let Some(seconds) = stay {
+            let closer = handle.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(seconds));
+                closer.send(Command::Close);
+            });
+        }
         let mut frames = 0;
         let mut typing_at = None;
         while let Some(event) = events.blocking_recv() {
@@ -265,11 +301,37 @@ mod tests {
                     let _ = reply.send(crate::remote::Trust::Accepted);
                 }
                 Event::Protection(protection) => eprintln!("protection {protection:?}"),
+                Event::KeepsSize => eprintln!("keeps its size"),
+                Event::OneMonitor => eprintln!("one monitor only"),
                 Event::Cursor(_) => eprintln!("cursor"),
                 Event::Frame(frame) => {
                     frames += 1;
                     if let Ok(path) = std::env::var("MOTE_TEST_PICTURE") {
                         save_ppm(&path, &frame);
+                    }
+                    // MOTE_TEST_LAYOUT=<w>x<h>,<w>x<h>…: monitors side by
+                    // side, the first the primary, after the first frame.
+                    if frames == 1
+                        && let Ok(layout) = std::env::var("MOTE_TEST_LAYOUT")
+                    {
+                        let mut x = 0;
+                        let monitors = layout
+                            .split(',')
+                            .filter_map(|size| {
+                                let (w, h) = size.split_once('x')?;
+                                let (width, height) = (w.parse().ok()?, h.parse().ok()?);
+                                let monitor = crate::remote::Monitor {
+                                    x,
+                                    y: 0,
+                                    width,
+                                    height,
+                                    scale: 100,
+                                };
+                                x += width as i32;
+                                Some(monitor)
+                            })
+                            .collect();
+                        handle.send(Command::Layout(monitors));
                     }
                     match (&typed, typing_at) {
                         (Some(text), None) => {
@@ -284,6 +346,7 @@ mod tests {
                             typing_at = Some(std::time::Instant::now());
                         }
                         (Some(_), Some(at)) if at.elapsed().as_secs() < 2 => {}
+                        _ if stay.is_some() => {}
                         _ => handle.send(Command::Close),
                     }
                     handle.send(Command::FrameDone);

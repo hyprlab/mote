@@ -9,7 +9,7 @@ use adw::prelude::*;
 use relm4::prelude::*;
 
 use crate::connection::{
-    Connection, Network, Protocol, Quality, Scaling, parse_mac, split_address,
+    Connection, Network, Protocol, Quality, Scaling, VncCodec, parse_mac, split_address,
 };
 use crate::i18n::i18n;
 use crate::secrets::{self, Password, Secret};
@@ -63,6 +63,7 @@ struct Rows {
     gateway_password: adw::PasswordEntryRow,
     scaling: adw::ComboRow,
     quality: adw::ComboRow,
+    vnc_codec: adw::ComboRow,
     view_only: adw::SwitchRow,
     fullscreen: adw::SwitchRow,
     new_window: adw::SwitchRow,
@@ -203,6 +204,7 @@ impl Component for Editor {
             gateway_password: password_entry(&i18n("Password")),
             scaling: adw::ComboRow::new(),
             quality: adw::ComboRow::new(),
+            vnc_codec: adw::ComboRow::new(),
             view_only: adw::SwitchRow::new(),
             fullscreen: adw::SwitchRow::new(),
             new_window: adw::SwitchRow::new(),
@@ -255,6 +257,22 @@ impl Component for Editor {
                 .unwrap_or_default() as u32,
         );
         rows.quality.notify("selected");
+        let labels: Vec<String> = VncCodec::ALL.into_iter().map(vnc_codec_label).collect();
+        let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
+        rows.vnc_codec.set_title(&i18n("Codec"));
+        rows.vnc_codec
+            .set_model(Some(&gtk::StringList::new(&labels)));
+        rows.vnc_codec.connect_selected_notify(|row| {
+            let codec = VncCodec::ALL.get(row.selected() as usize).copied();
+            row.set_subtitle(&codec.map(vnc_codec_cost).unwrap_or_default());
+        });
+        rows.vnc_codec.set_selected(
+            VncCodec::ALL
+                .iter()
+                .position(|q| *q == c.vnc_codec)
+                .unwrap_or_default() as u32,
+        );
+        rows.vnc_codec.notify("selected");
         let labels: Vec<String> = Network::ALL.into_iter().map(network_label).collect();
         let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
         rows.network.set_title(&i18n("Connection Type"));
@@ -413,6 +431,7 @@ impl Component for Editor {
         display.set_title(&i18n("Display"));
         display.add(&rows.scaling);
         display.add(&rows.quality);
+        display.add(&rows.vnc_codec);
         display.add(&rows.view_only);
         display.add(&rows.fullscreen);
         display.add(&rows.new_window);
@@ -560,6 +579,10 @@ impl Component for Editor {
                         .get(r.network.selected() as usize)
                         .copied()
                         .unwrap_or_default(),
+                    vnc_codec: VncCodec::ALL
+                        .get(r.vnc_codec.selected() as usize)
+                        .copied()
+                        .unwrap_or_default(),
                     view_only: r.view_only.is_active(),
                     allow_unencrypted: r.allow_unencrypted.is_active(),
                     fullscreen: r.fullscreen.is_active(),
@@ -694,7 +717,10 @@ impl Editor {
 /// domain, and none of RDP's codecs, gateway or sharing; the VNC clipboard
 /// comes with section 16. Only VNC can go without encryption.
 fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
-    let vnc_only = rows.allow_unencrypted.clone();
+    let vnc_only = [
+        rows.allow_unencrypted.clone().upcast::<gtk::Widget>(),
+        rows.vnc_codec.clone().upcast(),
+    ];
     let rdp_only: Vec<gtk::Widget> = vec![
         rows.domain.clone().upcast(),
         rows.quality.clone().upcast(),
@@ -706,7 +732,9 @@ fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
         for row in &rdp_only {
             row.set_visible(protocol == Protocol::Rdp);
         }
-        vnc_only.set_visible(protocol == Protocol::Vnc);
+        for row in &vnc_only {
+            row.set_visible(protocol == Protocol::Vnc);
+        }
     };
     show(protocol);
     let (port, last) = (rows.port.clone(), Cell::new(protocol));
@@ -752,6 +780,24 @@ pub(crate) fn quality_cost(quality: Quality) -> String {
         Quality::Best => String::new(),
         Quality::Avc420 => i18n("Half the color detail: colored text is softer"),
         Quality::RemoteFx => i18n("About twice the bandwidth; KRdp turns it down"),
+    }
+}
+
+fn vnc_codec_label(codec: VncCodec) -> String {
+    match codec {
+        VncCodec::Best => i18n("Best Available"),
+        VncCodec::Lossless => i18n("Lossless"),
+        VncCodec::LowBandwidth => i18n("Low Bandwidth"),
+    }
+}
+
+/// What choosing it costs, for the row's subtitle, as measured on moving
+/// pictures against Best Available.
+fn vnc_codec_cost(codec: VncCodec) -> String {
+    match codec {
+        VncCodec::Best => String::new(),
+        VncCodec::Lossless => i18n("About three times the bandwidth"),
+        VncCodec::LowBandwidth => i18n("A softer picture, for half the bandwidth"),
     }
 }
 

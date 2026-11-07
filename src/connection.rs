@@ -38,6 +38,8 @@ pub(crate) struct Connection {
     pub(crate) last_used: i64,
     pub(crate) scaling: Scaling,
     pub(crate) quality: Quality,
+    /// VNC's codec choice, as `quality` is RDP's.
+    pub(crate) vnc_codec: VncCodec,
     pub(crate) network: Network,
     /// Share the clipboard with the remote desktop.
     pub(crate) clipboard: bool,
@@ -175,6 +177,25 @@ impl Quality {
     pub(crate) const ALL: [Self; 3] = [Self::Best, Self::Avc420, Self::RemoteFx];
 }
 
+/// How a VNC server is asked to send its picture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum VncCodec {
+    /// H.264 where the server has it; else Tight, with JPEG at a high
+    /// quality where the picture is a photo, and exact elsewhere.
+    #[default]
+    Best,
+    /// Every pixel exact: ZRLE, and Tight without JPEG; no H.264.
+    Lossless,
+    /// For a slow network: Tight's JPEG at a low quality, compressed
+    /// harder, and H.264 where the server has it.
+    LowBandwidth,
+}
+
+impl VncCodec {
+    pub(crate) const ALL: [Self; 3] = [Self::Best, Self::Lossless, Self::LowBandwidth];
+}
+
 /// The network the server is told it is on. xrdp sets its H.264 bitrate
 /// by it; the others measure the network themselves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -254,6 +275,7 @@ impl Default for Connection {
             last_used: 0,
             scaling: Scaling::default(),
             quality: Quality::default(),
+            vnc_codec: VncCodec::Best,
             network: Network::default(),
             // The server reads the local clipboard whenever it likes, so it
             // is shared only when asked for.

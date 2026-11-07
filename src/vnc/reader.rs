@@ -5,12 +5,14 @@
 //! only to put a decoded rectangle in place, never across a read.
 
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use flate2::Decompress;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::sync::mpsc;
 
 use super::decode::{self, Bad, Desktop, Filter};
+use super::h264::Contexts;
 use super::handshake::MAX_SIDE;
 use crate::remote::{Ending, Failure, Pointer, Rect, describe};
 
@@ -29,6 +31,7 @@ pub(super) mod encoding {
     pub(in super::super) const ZLIB: i32 = 6;
     pub(in super::super) const TIGHT: i32 = 7;
     pub(in super::super) const ZRLE: i32 = 16;
+    pub(in super::super) const OPEN_H264: i32 = 50;
     pub(in super::super) const CURSOR: i32 = -239;
     pub(in super::super) const DESKTOP_SIZE: i32 = -223;
     pub(in super::super) const LAST_RECT: i32 = -224;
@@ -36,15 +39,44 @@ pub(super) mod encoding {
     pub(in super::super) const DESKTOP_NAME: i32 = -307;
     pub(in super::super) const EXTENDED_DESKTOP_SIZE: i32 = -308;
     pub(in super::super) const EXTENDED_MOUSE_BUTTONS: i32 = -316;
+    pub(in super::super) const FENCE: i32 = -312;
+    pub(in super::super) const CONTINUOUS_UPDATES: i32 = -313;
     /// Tight's JPEG quality, 0 to 9, as this plus the level.
     pub(in super::super) const JPEG_QUALITY_0: i32 = -32;
     /// The server's compression effort, 0 to 9, as this plus the level.
     pub(in super::super) const COMPRESS_LEVEL_0: i32 = -256;
 }
 
+/// A screen of the remote desktop, as ExtendedDesktopSize describes it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Screen {
+    pub(super) id: u32,
+    pub(super) x: u16,
+    pub(super) y: u16,
+    pub(super) width: u16,
+    pub(super) height: u16,
+    pub(super) flags: u32,
+}
+
 pub(super) enum Note {
-    /// An update has been read; these parts of the desktop changed.
-    Updated(Vec<Rect>),
+    /// An update has been read; these parts of the desktop changed, and
+    /// decoding them took this long, waiting on the network left out.
+    Updated(Vec<Rect>, Duration),
+    /// The server's screens, which say it can change them: after a change
+    /// this client asked for (`asked`), and with a status not 0 when the
+    /// change failed.
+    Layout {
+        asked: bool,
+        status: u16,
+        screens: Vec<Screen>,
+    },
+    /// The server takes continuous updates, or has stopped sending them.
+    ContinuousUpdates,
+    /// The server asks for its fence to come back.
+    Fence {
+        flags: u32,
+        payload: Vec<u8>,
+    },
     /// The desktop has a new size, and holds nothing yet.
     Resized(u16, u16),
     /// The server's pointer; none for a hidden one.
@@ -83,6 +115,7 @@ pub(super) async fn run<R: AsyncRead + Unpin>(
     read: R,
     desktop: Arc<Mutex<Desktop>>,
     notes: mpsc::Sender<Note>,
+    h264: Option<Contexts>,
 ) {
     let mut reader = Reader {
         read: BufReader::with_capacity(64 << 10, read),
@@ -91,6 +124,8 @@ pub(super) async fn run<R: AsyncRead + Unpin>(
         zlib: Decompress::new(true),
         zrle: Decompress::new(true),
         tight: std::array::from_fn(|_| Decompress::new(true)),
+        h264,
+        spent: Duration::ZERO,
     };
     let ending = match reader.serve().await {
         Stop::Gone => return,
@@ -113,6 +148,10 @@ struct Reader<R> {
     zlib: Decompress,
     zrle: Decompress,
     tight: [Decompress; 4],
+    /// H.264's decoders, when the system has one and it was asked for.
+    h264: Option<Contexts>,
+    /// Time spent decoding this update so far.
+    spent: Duration,
 }
 
 impl<R: AsyncRead + Unpin> Reader<R> {
@@ -124,7 +163,7 @@ impl<R: AsyncRead + Unpin> Reader<R> {
         }
     }
 
-    async fn note(&self, note: Note) -> Result<(), Stop> {
+    async fn note(&mut self, note: Note) -> Result<(), Stop> {
         self.notes.send(note).await.map_err(|_| Stop::Gone)
     }
 
@@ -147,6 +186,19 @@ impl<R: AsyncRead + Unpin> Reader<R> {
                     return Err(Stop::Bad(format!("{length} bytes of clipboard")));
                 }
                 self.skip(length).await
+            }
+            // EndOfContinuousUpdates.
+            150 => self.note(Note::ContinuousUpdates).await,
+            // ServerFence.
+            248 => {
+                self.skip(3).await?;
+                let flags = self.read.read_u32().await?;
+                let length = self.read.read_u8().await?;
+                if length > 64 {
+                    return Err(Stop::Bad(format!("a fence of {length} bytes")));
+                }
+                let payload = self.bytes(length.into()).await?;
+                self.note(Note::Fence { flags, payload }).await
             }
             other => Err(Stop::Bad(format!("message type {other}"))),
         }
@@ -174,7 +226,8 @@ impl<R: AsyncRead + Unpin> Reader<R> {
                 });
             }
         }
-        self.note(Note::Updated(damage)).await
+        let spent = std::mem::take(&mut self.spent);
+        self.note(Note::Updated(damage, spent)).await
     }
 
     /// Read one rectangle; whether it changed the picture.
@@ -189,14 +242,33 @@ impl<R: AsyncRead + Unpin> Reader<R> {
         let pixels = match kind {
             encoding::DESKTOP_SIZE => return self.resize(width, height).await,
             encoding::EXTENDED_DESKTOP_SIZE => {
-                let screens = self.read.read_u8().await?;
-                self.skip(3 + usize::from(screens) * 16).await?;
-                // `y` is the status: not 0 when a change asked for failed,
-                // and then the size is the one the desktop already has.
-                return if y == 0 {
+                let count = self.read.read_u8().await?;
+                self.skip(3).await?;
+                let mut screens = Vec::with_capacity(count.into());
+                for _ in 0..count {
+                    screens.push(Screen {
+                        id: self.read.read_u32().await?,
+                        x: self.read.read_u16().await?,
+                        y: self.read.read_u16().await?,
+                        width: self.read.read_u16().await?,
+                        height: self.read.read_u16().await?,
+                        flags: self.read.read_u32().await?,
+                    });
+                }
+                // `x` says why: 1 for a change this client asked for. `y`
+                // is the status: not 0 when that change failed, and then
+                // the size is the one the desktop already has.
+                let (asked, status) = (x == 1, y);
+                self.note(Note::Layout {
+                    asked,
+                    status,
+                    screens,
+                })
+                .await?;
+                return if status == 0 {
                     self.resize(width, height).await
                 } else {
-                    tracing::info!("the server didn't take the size asked for ({y})");
+                    tracing::info!("the server answered the layout asked for with {status}");
                     Ok(false)
                 };
             }
@@ -241,7 +313,10 @@ impl<R: AsyncRead + Unpin> Reader<R> {
             encoding::ZLIB => {
                 let data = self.counted().await?;
                 let size = usize::from(width) * usize::from(height) * 4;
-                exactly(decode::inflate(&mut self.zlib, &data, size)?, size)?
+                let start = Instant::now();
+                let pixels = exactly(decode::inflate(&mut self.zlib, &data, size)?, size)?;
+                self.spent += start.elapsed();
+                pixels
             }
             encoding::ZRLE => {
                 let data = self.counted().await?;
@@ -249,16 +324,47 @@ impl<R: AsyncRead + Unpin> Reader<R> {
                 // pixel, and a tile's palette at most 382 bytes.
                 let tiles = usize::from(width.div_ceil(64)) * usize::from(height.div_ceil(64));
                 let limit = usize::from(width) * usize::from(height) * 4 + tiles * 382;
+                let start = Instant::now();
                 let tiles = decode::inflate(&mut self.zrle, &data, limit)?;
-                decode::zrle(&tiles, width, height)?
+                let pixels = decode::zrle(&tiles, width, height)?;
+                self.spent += start.elapsed();
+                pixels
             }
             encoding::TIGHT => self.tight(width, height).await?,
+            encoding::OPEN_H264 => {
+                let length = self.read.read_u32().await? as usize;
+                let flags = self.read.read_u32().await?;
+                let Some(h264) = &mut self.h264 else {
+                    return Err(Stop::Bad("H.264, not asked for".into()));
+                };
+                if flags & 2 != 0 {
+                    h264.reset_all();
+                }
+                if flags & 1 != 0 {
+                    h264.reset((x, y, width, height));
+                }
+                // Empty: only the flags were to be heard.
+                if length == 0 {
+                    return Ok(false);
+                }
+                let data = self.bytes(length).await?;
+                let start = Instant::now();
+                let pixels = self
+                    .h264
+                    .as_mut()
+                    .expect("checked above")
+                    .decode((x, y, width, height), &data)?;
+                self.spent += start.elapsed();
+                pixels
+            }
             other => return Err(Stop::Bad(format!("encoding {other}, not asked for"))),
         };
+        let start = Instant::now();
         self.desktop
             .lock()
             .expect("desktop")
             .put(x, y, width, &pixels);
+        self.spent += start.elapsed();
         Ok(true)
     }
 
@@ -390,7 +496,10 @@ impl<R: AsyncRead + Unpin> Reader<R> {
         if method == 0b1001 {
             let length = self.compact().await?;
             let data = self.bytes(length).await?;
-            return Ok(decode::jpeg(&data, width, height)?);
+            let start = Instant::now();
+            let pixels = decode::jpeg(&data, width, height)?;
+            self.spent += start.elapsed();
+            return Ok(pixels);
         }
         if method & 0b1000 != 0 {
             return Err(Stop::Bad(format!("Tight compression {method:#06b}")));
@@ -417,9 +526,15 @@ impl<R: AsyncRead + Unpin> Reader<R> {
             let length = self.compact().await?;
             let compressed = self.bytes(length).await?;
             let stream = &mut self.tight[usize::from(method & 0b11)];
-            exactly(decode::inflate(stream, &compressed, size)?, size)?
+            let start = Instant::now();
+            let data = exactly(decode::inflate(stream, &compressed, size)?, size)?;
+            self.spent += start.elapsed();
+            data
         };
-        Ok(filter.pixels(&data, width, height)?)
+        let start = Instant::now();
+        let pixels = filter.pixels(&data, width, height)?;
+        self.spent += start.elapsed();
+        Ok(pixels)
     }
 
     /// Tight's length in one to three bytes, seven bits at a time.
@@ -508,7 +623,7 @@ mod tests {
         let desktop = Arc::new(Mutex::new(Desktop::new(64, 48)));
         let (notes, mut heard) = mpsc::channel(16);
         let listening = tokio::spawn(async move { while heard.recv().await.is_some() {} });
-        run(std::io::Cursor::new(data), desktop, notes).await;
+        run(std::io::Cursor::new(data), desktop, notes, None).await;
         listening.await.unwrap();
     }
 

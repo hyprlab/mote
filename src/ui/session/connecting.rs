@@ -68,6 +68,8 @@ impl Session {
         let target = remote::Target {
             protocol: self.connection.protocol,
             allow_unencrypted: self.connection.allow_unencrypted,
+            vnc_codec: self.connection.vnc_codec,
+            resize: self.scaling == crate::connection::Scaling::Resize,
             host: self.connection.host.clone(),
             port: self.connection.port,
             addresses: self.connection.addresses(),

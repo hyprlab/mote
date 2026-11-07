@@ -41,6 +41,11 @@ pub(crate) struct Target {
     pub(crate) protocol: crate::connection::Protocol,
     /// VNC: connect even when the server offers no encryption.
     pub(crate) allow_unencrypted: bool,
+    /// VNC: how to ask for the picture.
+    pub(crate) vnc_codec: crate::connection::VncCodec,
+    /// VNC: ask the server to take `width` and `height` once it says it
+    /// can, as the desktop follows the window. RDP always asks for them.
+    pub(crate) resize: bool,
     /// Where the connection is going right now.
     pub(crate) host: String,
     pub(crate) port: u16,
