@@ -51,15 +51,27 @@ impl Desktop {
     }
 }
 
+/// What a connection keeps from one session to the next, when it
+/// reconnects or is redirected.
+pub(super) struct Kept<'a> {
+    pub(super) input: &'a mut ironrdp_input::Database,
+    pub(super) clipboard: &'a mut super::clipboard::Clipboard,
+    pub(super) audio: &'a mut super::audio::Audio,
+}
+
 pub(super) async fn run(
     framed: Framed,
     result: ConnectionResult,
     events: &mpsc::Sender<Event>,
     commands: &mut mpsc::UnboundedReceiver<Command>,
     asked: &mut (u32, u32, u32),
-    clipboard: &mut super::clipboard::Clipboard,
-    audio: &mut super::audio::Audio,
+    kept: Kept<'_>,
 ) -> Result<Outcome, Failure> {
+    let Kept {
+        input,
+        clipboard,
+        audio,
+    } = kept;
     let (mut reader, mut writer) = split_tokio_framed(framed);
     let size = result.desktop_size;
     let mut desktop = Desktop::new(size.width, size.height);
@@ -135,8 +147,8 @@ pub(super) async fn run(
                 outputs
             }
             command = commands.recv() => match command {
-                Some(Command::Input(input)) => stage
-                    .process_fastpath_input(&mut desktop.image, &input)
+                Some(Command::Input(sent)) => stage
+                    .process_fastpath_input(&mut desktop.image, &super::input::events(input, sent))
                     .map_err(|e| Failure::Protocol(describe(&e)))?,
                 Some(Command::FrameDone) => {
                     desktop.in_flight = false;
@@ -200,7 +212,14 @@ pub(super) async fn run(
                     send(events, Event::Cursor(Cursor::Hidden)).await?;
                 }
                 ActiveStageOutput::PointerBitmap(pointer) => {
-                    send(events, Event::Cursor(Cursor::Bitmap(pointer))).await?;
+                    let pointer = crate::remote::Pointer {
+                        width: pointer.width,
+                        height: pointer.height,
+                        hotspot_x: pointer.hotspot_x,
+                        hotspot_y: pointer.hotspot_y,
+                        rgba: pointer.bitmap_data.clone(),
+                    };
+                    send(events, Event::Cursor(Cursor::Bitmap(pointer.into()))).await?;
                 }
                 ActiveStageOutput::DeactivateAll => {
                     if let Some(reason) = reactivate(

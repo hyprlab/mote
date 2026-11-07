@@ -11,6 +11,7 @@ mod devices;
 mod failure;
 mod frames;
 pub(crate) mod h264;
+mod input;
 pub(crate) mod keymap;
 mod rdstls;
 mod route;
@@ -20,8 +21,6 @@ mod tap;
 
 use std::sync::Arc;
 
-use ironrdp_graphics::pointer::DecodedPointer;
-use ironrdp_pdu::input::fast_path::FastPathInputEvent;
 use tokio::sync::{mpsc, oneshot};
 
 pub(crate) use clipboard::{ClipboardCommand, ClipboardEvent};
@@ -172,12 +171,11 @@ pub(crate) enum Trust {
 pub(crate) enum Cursor {
     Default,
     Hidden,
-    /// RGBA, not premultiplied.
-    Bitmap(Arc<DecodedPointer>),
+    Bitmap(Arc<crate::remote::Pointer>),
 }
 
 pub(crate) enum Command {
-    Input(Vec<FastPathInputEvent>),
+    Input(Vec<crate::remote::input::Input>),
     /// Make the remote desktop this size, in the screen's own pixels, at
     /// this scale in percent.
     Resize {
@@ -285,6 +283,9 @@ async fn drive(
     let mut clipboard = clipboard::Clipboard::new(target.clipboard, target.clipboard_files);
     let mut early = Vec::new();
     let mut audio = audio::Audio::new(target.sound, target.microphone);
+    // Kept across reconnections, as the interface's own record of what is
+    // held down is.
+    let mut input = ironrdp_input::Database::new();
     let mut hops = 0;
     // Since when the session has been trying to come back, and how long it
     // waits before the next try.
@@ -324,8 +325,11 @@ async fn drive(
             events,
             commands,
             &mut size,
-            &mut clipboard,
-            &mut audio,
+            session::Kept {
+                input: &mut input,
+                clipboard: &mut clipboard,
+                audio: &mut audio,
+            },
         )
         .await;
         match outcome {

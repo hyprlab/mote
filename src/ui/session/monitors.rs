@@ -126,7 +126,7 @@ impl Spread {
         others: &[(gdk::Monitor, (i32, i32))],
         title: &str,
         main: &Display,
-        input: impl Fn(Vec<ironrdp_pdu::input::fast_path::FastPathInputEvent>) + Clone + 'static,
+        input: impl Fn(Vec<crate::remote::input::Input>) + Clone + 'static,
         on_closed: impl Fn() + Clone + 'static,
     ) -> Self {
         let windows = others

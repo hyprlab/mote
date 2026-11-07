@@ -9,20 +9,22 @@ use gtk::glib::subclass::prelude::*;
 use gtk::prelude::*;
 use gtk::subclass::widget::{WidgetClassExt, WidgetImpl, WidgetImplExt};
 use gtk::{gdk, glib, graphene, gsk};
-use ironrdp_graphics::pointer::DecodedPointer;
-use ironrdp_input::{Database, MouseButton, MousePosition, Operation, Scancode, WheelRotations};
-use ironrdp_pdu::input::fast_path::FastPathInputEvent;
 
 use crate::connection::Scaling;
 use crate::rdp::{self, keymap};
+use crate::remote::Pointer;
+use crate::remote::input::{Button, Held, Input, Key};
 
-type InputSink = Rc<dyn Fn(Vec<FastPathInputEvent>)>;
+type InputSink = Rc<dyn Fn(Vec<Input>)>;
 type SizeSink = Rc<dyn Fn()>;
 type GrabSink = Rc<dyn Fn()>;
 
 /// GTK's keycode for Right Ctrl: evdev's 97, plus 8.
 const RIGHT_CTRL: u32 = 97 + 8;
-const RIGHT_CTRL_SCANCODE: u16 = 0xE01D;
+const RIGHT_CTRL_KEY: Key = Key {
+    scancode: 0xE01D,
+    keysym: 0xFFE4,
+};
 
 mod imp {
     use super::*;
@@ -40,12 +42,12 @@ mod imp {
         /// for, so Resize scales the picture to fit as Fit does.
         pub(super) keeps_size: Cell<bool>,
         /// The server's pointer, kept to draw it again at a new scale.
-        pub(super) pointer: RefCell<Option<Arc<DecodedPointer>>>,
+        pub(super) pointer: RefCell<Option<Arc<Pointer>>>,
         /// The surface whose scale is followed, and the handler doing it.
         pub(super) watched: RefCell<Option<(gdk::Surface, glib::SignalHandlerId)>>,
         /// What is held down on the server's side, so a key or button
         /// still down when focus leaves can be let go of.
-        pub(super) state: RefCell<Database>,
+        pub(super) state: RefCell<Held>,
         /// Scrolling not yet sent: wheel units come whole.
         pub(super) scroll: Cell<(f64, f64)>,
         /// Shown but not yet painted: when its oldest change was decoded.
@@ -239,7 +241,7 @@ pub(super) fn device_scale(widget: &impl IsA<gtk::Widget>) -> f64 {
 
 impl Display {
     /// Where input goes: to the session.
-    pub(crate) fn set_input(&self, sink: impl Fn(Vec<FastPathInputEvent>) + 'static) {
+    pub(crate) fn set_input(&self, sink: impl Fn(Vec<Input>) + 'static) {
         self.imp().input.replace(Some(Rc::new(sink)));
     }
 
@@ -287,9 +289,10 @@ impl Display {
     /// or a click came with it.
     fn send_host_key(&self) {
         if self.imp().host_key.replace(false) && !self.imp().view_only.get() {
-            self.apply(Operation::KeyPressed(Scancode::from_u16(
-                RIGHT_CTRL_SCANCODE,
-            )));
+            self.apply(Input::Key {
+                key: RIGHT_CTRL_KEY,
+                down: true,
+            });
         }
     }
 
@@ -308,13 +311,24 @@ impl Display {
         if self.imp().view_only.get() {
             return;
         }
-        let codes: Vec<Scancode> = codes.iter().map(|&c| Scancode::from_u16(c)).collect();
-        let operations = codes
+        let key = |scancode| Key {
+            scancode,
+            keysym: 0,
+        };
+        let inputs = codes
             .iter()
-            .map(|&c| Operation::KeyPressed(c))
-            .chain(codes.iter().rev().map(|&c| Operation::KeyReleased(c)));
-        let events = self.imp().state.borrow_mut().apply(operations);
-        self.send(events);
+            .map(|&c| Input::Key {
+                key: key(c),
+                down: true,
+            })
+            .chain(codes.iter().rev().map(|&c| Input::Key {
+                key: key(c),
+                down: false,
+            }));
+        let mut state = self.imp().state.borrow_mut();
+        let inputs: Vec<_> = inputs.filter_map(|i| state.apply(i)).collect();
+        drop(state);
+        self.send(inputs);
     }
 
     /// The desktop as last shown.
@@ -499,7 +513,7 @@ impl Display {
             w,
             h,
             gdk::MemoryFormat::R8g8b8a8,
-            &glib::Bytes::from(&pointer.bitmap_data),
+            &glib::Bytes::from(&pointer.rgba),
             w as usize * 4,
         );
         let logical = |pixels: u16| ((f64::from(pixels) * scale).round() as i32).max(1);
@@ -519,7 +533,7 @@ impl Display {
         self.set_cursor(cursor.as_ref());
     }
 
-    fn send(&self, events: impl IntoIterator<Item = FastPathInputEvent>) {
+    fn send(&self, events: impl IntoIterator<Item = Input>) {
         let events: Vec<_> = events.into_iter().collect();
         if events.is_empty() {
             return;
@@ -529,18 +543,18 @@ impl Display {
         }
     }
 
-    fn apply(&self, operation: Operation) {
-        let events = self.imp().state.borrow_mut().apply([operation]);
-        self.send(events);
+    fn apply(&self, input: Input) {
+        let input = self.imp().state.borrow_mut().apply(input);
+        self.send(input);
     }
 
     /// The desktop position under a point of the widget.
-    fn remote_point(&self, x: f64, y: f64) -> Option<MousePosition> {
+    fn remote_point(&self, x: f64, y: f64) -> Option<Input> {
         let texture = self.imp().texture.borrow().clone()?;
         let place = Placement::new(self, &texture);
         let max_x = f64::from(texture.width() - 1);
         let max_y = f64::from(texture.height() - 1);
-        Some(MousePosition {
+        Some(Input::Pointer {
             x: ((x - place.x) / place.scale).clamp(0.0, max_x) as u16,
             y: ((y - place.y) / place.scale).clamp(0.0, max_y) as u16,
         })
@@ -612,14 +626,14 @@ fn connect_input(display: &Display) {
         display,
         #[upgrade_or]
         glib::Propagation::Proceed,
-        move |_, _, keycode, _| {
+        move |_, keyval, keycode, _| {
             if keycode == RIGHT_CTRL {
                 // Held back until it is clear whether it comes alone.
                 if !display
                     .imp()
                     .state
                     .borrow()
-                    .is_key_pressed(Scancode::from_u16(RIGHT_CTRL_SCANCODE))
+                    .is_key_down(RIGHT_CTRL_KEY.scancode)
                 {
                     display.imp().host_key.set(true);
                 }
@@ -630,10 +644,14 @@ fn connect_input(display: &Display) {
                 // Kept from this computer's shortcuts all the same.
                 return glib::Propagation::Stop;
             }
-            if let Some(code) = scancode(keycode) {
+            if let Some(scancode) = scancode(keycode) {
                 // The server repeats a held key itself.
-                if !display.imp().state.borrow().is_key_pressed(code) {
-                    display.apply(Operation::KeyPressed(code));
+                if !display.imp().state.borrow().is_key_down(scancode) {
+                    let keysym = glib::translate::IntoGlib::into_glib(keyval);
+                    display.apply(Input::Key {
+                        key: Key { scancode, keysym },
+                        down: true,
+                    });
                 }
             }
             // Every key is the session's, shortcuts included.
@@ -652,8 +670,15 @@ fn connect_input(display: &Display) {
                 }
                 return;
             }
-            if let Some(code) = scancode(keycode).filter(|_| !display.imp().view_only.get()) {
-                display.apply(Operation::KeyReleased(code));
+            if let Some(scancode) = scancode(keycode).filter(|_| !display.imp().view_only.get()) {
+                // Let go of with the keysym it was pressed with.
+                display.apply(Input::Key {
+                    key: Key {
+                        scancode,
+                        keysym: 0,
+                    },
+                    down: false,
+                });
             }
         }
     ));
@@ -723,7 +748,7 @@ fn connect_input(display: &Display) {
                 return;
             }
             if let Some(position) = display.remote_point(x, y) {
-                display.apply(Operation::MouseMove(position));
+                display.apply(position);
             }
         }
     ));
@@ -758,11 +783,10 @@ fn connect_input(display: &Display) {
             if display.imp().view_only.get() {
                 return glib::Propagation::Stop;
             }
-            if pressed {
-                display.apply(Operation::MouseButtonPressed(button));
-            } else {
-                display.apply(Operation::MouseButtonReleased(button));
-            }
+            display.apply(Input::Button {
+                button,
+                down: pressed,
+            });
             glib::Propagation::Stop
         }
     ));
@@ -798,22 +822,19 @@ impl Display {
         // Down is negative on the wire, right positive.
         ax += dx * per;
         ay -= dy * per;
-        let mut operations = Vec::new();
+        let mut wheel = Vec::new();
         for (amount, vertical) in [(&mut ay, true), (&mut ax, false)] {
             let whole = amount.trunc();
             if whole != 0.0 {
                 *amount -= whole;
-                operations.push(Operation::WheelRotations(WheelRotations {
-                    is_vertical: vertical,
-                    rotation_units: whole.clamp(-255.0, 255.0) as i16,
-                }));
+                wheel.push(Input::Wheel {
+                    vertical,
+                    units: whole.clamp(-255.0, 255.0) as i16,
+                });
             }
         }
         self.imp().scroll.set((ax, ay));
-        if !operations.is_empty() {
-            let events = self.imp().state.borrow_mut().apply(operations);
-            self.send(events);
-        }
+        self.send(wheel);
     }
 
     /// Give the keyboard and the shortcuts back to this computer, as the
@@ -840,12 +861,11 @@ impl Display {
         let Some(keyboard) = self.display().default_seat().and_then(|s| s.keyboard()) else {
             return;
         };
-        self.send([ironrdp_input::synchronize_event(
-            keyboard.is_scroll_locked(),
-            keyboard.is_num_locked(),
-            keyboard.is_caps_locked(),
-            false,
-        )]);
+        self.send([Input::Locks {
+            caps: keyboard.is_caps_locked(),
+            num: keyboard.is_num_locked(),
+            scroll: keyboard.is_scroll_locked(),
+        }]);
     }
 }
 
@@ -866,17 +886,17 @@ fn holds_button(event: &gdk::Event) -> bool {
 }
 
 /// GTK's hardware keycode is the evdev code plus 8.
-fn scancode(keycode: u32) -> Option<Scancode> {
-    keymap::scancode(keycode.checked_sub(8)?).map(Scancode::from_u16)
+fn scancode(keycode: u32) -> Option<u16> {
+    keymap::scancode(keycode.checked_sub(8)?)
 }
 
-fn mouse_button(button: u32) -> Option<MouseButton> {
+fn mouse_button(button: u32) -> Option<Button> {
     Some(match button {
-        gdk::BUTTON_PRIMARY => MouseButton::Left,
-        gdk::BUTTON_MIDDLE => MouseButton::Middle,
-        gdk::BUTTON_SECONDARY => MouseButton::Right,
-        8 => MouseButton::X1,
-        9 => MouseButton::X2,
+        gdk::BUTTON_PRIMARY => Button::Left,
+        gdk::BUTTON_MIDDLE => Button::Middle,
+        gdk::BUTTON_SECONDARY => Button::Right,
+        8 => Button::Back,
+        9 => Button::Forward,
         _ => return None,
     })
 }
