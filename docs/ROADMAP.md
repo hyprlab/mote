@@ -111,7 +111,7 @@ headless GNOME Remote Desktop signed in over it with
 | 13 | VNC first session | Done |
 | 14 | VNC security | Done |
 | 15 | VNC display | Done |
-| 16 | VNC clipboard | Planned |
+| 16 | VNC clipboard | Done |
 | 17 | VNC connections | Planned |
 
 ### 1. Foundation
@@ -770,6 +770,34 @@ Text in both directions: the original Latin-1 cut text, and the extended
 clipboard's UTF-8 text, RTF and HTML where the server has it, fetched when
 something pastes. The same switch, off for a new connection, and the same
 notice as RDP's.
+
+Built: the original cut text, sent as soon as something is copied here,
+and the extended clipboard where the server announces it, which announces
+each copy and sends it only when something pastes. Text goes as UTF-8 with
+Windows' line endings over the extended clipboard and as Latin-1 over the
+original, where what Latin-1 can't hold becomes a question mark. HTML goes
+as Windows' HTML Format, to a server that takes it. A copy here waits for
+the server's first update, by when it has said whether it has the extended
+clipboard, rather than go out as Latin-1 first. An announcement of nothing
+Mote can paste leaves the clipboard here alone. In the editor, a VNC
+connection's Sharing has the clipboard's switch alone.
+
+RFB gives the original cut text as Latin-1; wayvnc sends UTF-8 in it, so
+text from the server that reads as UTF-8 is taken as UTF-8, which Latin-1
+with letters beyond ASCII almost never does. RTF, pictures and files are
+not shared: none of these servers offers them over VNC.
+
+Tried through the engine, with `xclip` and `wl-copy` on the servers'
+sides:
+
+| Server | Text | HTML |
+| --- | --- | --- |
+| TigerVNC 1.16 | Both ways, extended | Not offered |
+| wayvnc 0.9.1 | Both ways, extended; what it held already, as UTF-8 cut text | Not offered |
+| GNOME Remote Desktop 50 | Both ways, original Latin-1 | Not offered |
+
+Not yet tried in the app: the rig's headless desktop has no keyboard, and
+Wayland gives a clipboard to a client with one.
 
 ### 17. VNC connections
 
