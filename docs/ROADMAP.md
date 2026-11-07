@@ -108,7 +108,7 @@ headless GNOME Remote Desktop signed in over it with
 | 10 | Session controls | Done |
 | 11 | Settings and polish | Done |
 | 12 | Packaging | Done |
-| 13 | VNC first session | In progress |
+| 13 | VNC first session | Done |
 | 14 | VNC security | Planned |
 | 15 | VNC display | Planned |
 | 16 | VNC clipboard | Planned |
@@ -632,9 +632,9 @@ GitHub, and a release from a tag.
   password, TigerVNC's lock-out after failed attempts, a GNOME prompt
   declined or left unanswered, something other than a VNC server, and
   VNC Authentication's limit of 8 characters.
-- Limits on sizes and decompression, and fuzzing for each decoder.
+- Limits on sizes and decompression, and the decoders fed noise.
 
-Built so far:
+Built:
 
 - The connection editor has a Protocol row. A VNC connection takes a
   password alone, and its editor leaves out the user name, the domain, the
@@ -650,13 +650,19 @@ Built so far:
   buttons and the wheel; the server's pointer and its bell; reconnection.
   A server that offers only security types still to come is named with
   them.
+- Seeded tests feed the message reader and every decoder thousands of
+  random and mutated messages, compressed noise among them, and expect an
+  error and never a panic. Mote is one binary, which `cargo fuzz` can't
+  reach into, so these stand in for fuzzing.
 
 Tried against TigerVNC 1.16.2's `Xvnc` (`temp/vnc/run.sh`): signing in, a
 refused password, typing through QEMU extended key events, and each
 encoding asked for alone, ZRLE, Hextile and Zlib matching Raw pixel for
 pixel and Tight's JPEG within 14 levels of it. Pointed at an RDP server's
-port, the engine gives up after 10 seconds of silence. Not yet tried:
-KRfb, x11vnc, wayvnc, and the menu's key combinations.
+port, the engine gives up after 10 seconds of silence. In the app, against
+Linux Mint's VNC server on another machine, which offers VNC
+Authentication alone: signing in, the picture, typing and the pointer.
+Not yet tried: KRfb, x11vnc, wayvnc, and the menu's key combinations.
 
 ### 14. VNC security
 
