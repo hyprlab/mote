@@ -16,6 +16,7 @@ mod scan;
 mod secrets;
 mod stats;
 mod ui;
+mod vnc;
 
 use tracing_subscriber::EnvFilter;
 

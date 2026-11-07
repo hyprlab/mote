@@ -85,6 +85,12 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 x509-cert = "0.3"
 # Passwords are wiped from memory once dropped.
 zeroize = "1"
+# VNC: DES for VNC Authentication, zlib for the ZRLE, Zlib and Tight
+# encodings, and JPEG for Tight's pictures. All pure Rust.
+des = "0.9"
+flate2 = "1"
+zune-jpeg = "0.5"
+zune-core = "0.5"
 
 [build-dependencies]
 glib-build-tools = "0.22"

@@ -144,6 +144,9 @@ msgstr ""
 msgid "Connection"
 msgstr ""
 
+msgid "Protocol"
+msgstr ""
+
 msgid "Address"
 msgstr ""
 
@@ -290,6 +293,18 @@ msgstr ""
 msgid "Choose Image"
 msgstr ""
 
+msgid "Tried in order when the address can’t be reached"
+msgstr ""
+
+msgid "Add Address"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Remove Address"
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
@@ -384,18 +399,6 @@ msgstr ""
 msgid ""
 "Run by sh, with the connection in $MOTE_HOST, $MOTE_PORT, $MOTE_USER and "
 "$MOTE_NAME. A failed command before connecting stops the connection."
-msgstr ""
-
-msgid "Tried in order when the address can’t be reached"
-msgstr ""
-
-msgid "Add Address"
-msgstr ""
-
-msgid "Remove"
-msgstr ""
-
-msgid "Remove Address"
 msgstr ""
 
 msgid "Best Available"
@@ -606,14 +609,25 @@ msgid "Could Not Connect"
 msgstr ""
 
 msgid ""
+"The password was not accepted. VNC servers keep a password of their own, not "
+"the login password, and VNC Authentication reads only its first 8 characters."
+msgstr ""
+
+msgid ""
 "The user name or password was not accepted. GNOME Remote Desktop takes the "
 "ones set in its Remote Desktop settings, not the login password."
+msgstr ""
+
+msgid "{host} turned the connection down: “{reason}”"
 msgstr ""
 
 msgid "Not Connected"
 msgstr ""
 
 msgid "The computer’s identity was not trusted."
+msgstr ""
+
+msgid "{host} asks for security this version can’t use yet: {kinds}."
 msgstr ""
 
 msgid "Disconnected"

@@ -462,7 +462,7 @@ impl Component for Session {
         match msg {
             SessionInput::SignIn => {
                 let account = self.sign_in.account();
-                if account.username.trim().is_empty() {
+                if account.username.trim().is_empty() && self.connection.takes_username() {
                     self.sign_in.focus();
                     return;
                 }
@@ -679,7 +679,10 @@ impl Component for Session {
                 self.ssh_password = ssh.unwrap_or_default();
                 self.gateway_password = gateway.unwrap_or_default();
                 match account {
-                    Some(password) if !self.connection.username.trim().is_empty() => {
+                    Some(password)
+                        if !self.connection.username.trim().is_empty()
+                            || !self.connection.takes_username() =>
+                    {
                         self.password = password;
                         self.begin(&sender);
                     }
@@ -858,6 +861,7 @@ impl Session {
                     handle.send(remote::Command::FrameDone);
                 }
             }
+            Event::Bell => self.display.error_bell(),
             Event::Cursor(cursor) => {
                 for display in self.spread.iter().flat_map(|s| s.displays()) {
                     display.set_remote_cursor(cursor.clone());

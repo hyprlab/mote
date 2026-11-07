@@ -7,6 +7,8 @@ use crate::rdp::server::{Distro, Graphics, Server};
 
 /// The port RDP listens on unless told otherwise.
 pub(crate) const DEFAULT_PORT: u16 = 3389;
+/// The port of a VNC server's first display.
+pub(crate) const VNC_PORT: u16 = 5900;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -23,6 +25,7 @@ pub(crate) struct Connection {
     /// kept (see `ui::avatar`); empty for none.
     pub(crate) picture: String,
     pub(crate) group: String,
+    pub(crate) protocol: Protocol,
     pub(crate) host: String,
     pub(crate) port: u16,
     /// More addresses of the same computer, as `host` or `host:port`, to
@@ -84,6 +87,34 @@ pub(crate) struct Connection {
     pub(crate) distro: Option<Distro>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) graphics: Option<Graphics>,
+}
+
+/// What the server speaks. Profiles from before VNC have none, and are RDP.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum Protocol {
+    #[default]
+    Rdp,
+    Vnc,
+}
+
+impl Protocol {
+    pub(crate) const ALL: [Self; 2] = [Self::Rdp, Self::Vnc];
+
+    /// The port its servers listen on unless told otherwise.
+    pub(crate) fn port(self) -> u16 {
+        match self {
+            Self::Rdp => DEFAULT_PORT,
+            Self::Vnc => VNC_PORT,
+        }
+    }
+
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Rdp => "RDP",
+            Self::Vnc => "VNC",
+        }
+    }
 }
 
 /// How the remote desktop meets the window.
@@ -207,6 +238,7 @@ impl Default for Connection {
             name: String::new(),
             robot: String::new(),
             picture: String::new(),
+            protocol: Protocol::Rdp,
             group: String::new(),
             host: String::new(),
             port: DEFAULT_PORT,
@@ -263,7 +295,10 @@ impl Connection {
 
     /// The RD Gateway to go through, and its port.
     pub(crate) fn gateway_server(&self) -> Option<(String, u16)> {
-        let (host, port) = split_address(&self.gateway_host).filter(|_| self.gateway)?;
+        // An RD Gateway leads to RDP alone; a VNC connection keeps the
+        // setting only for a change back.
+        let used = self.gateway && self.protocol == Protocol::Rdp;
+        let (host, port) = split_address(&self.gateway_host).filter(|_| used)?;
         Some((host, port.unwrap_or(HTTPS_PORT)))
     }
 
@@ -281,9 +316,19 @@ impl Connection {
         }
     }
 
-    /// The host, with the port only when it isn't RDP's own.
+    /// Whether signing in takes a user name: VNC Authentication takes a
+    /// password alone.
+    pub(crate) fn takes_username(&self) -> bool {
+        self.protocol == Protocol::Rdp
+    }
+
+    /// The host, with the port only when it isn't the protocol's own.
     pub(crate) fn address(&self) -> String {
-        address_text(&self.host, self.port)
+        if self.port == self.protocol.port() {
+            self.host.clone()
+        } else {
+            with_port(&self.host, self.port)
+        }
     }
 
     /// Everywhere the computer may be, in the order to try: the host, then

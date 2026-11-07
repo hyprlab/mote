@@ -447,8 +447,17 @@ fn connection_row(conn: &Connection, settings: &Settings, open: bool) -> gtk::Li
     name.set_ellipsize(gtk::pango::EllipsizeMode::End);
     name.add_css_class("row-name");
     text.append(&name);
-    if settings.show_hosts && !conn.name.trim().is_empty() {
-        let host = gtk::Label::new(Some(&conn.address()));
+    // A VNC connection says so; RDP, the usual, goes unsaid.
+    let vnc = conn.protocol == crate::connection::Protocol::Vnc;
+    let named = !conn.name.trim().is_empty();
+    let caption = match (settings.show_hosts && named, vnc) {
+        (true, true) => Some(format!("VNC · {}", conn.address())),
+        (true, false) => Some(conn.address()),
+        (false, true) => Some("VNC".to_owned()),
+        (false, false) => None,
+    };
+    if let Some(caption) = caption {
+        let host = gtk::Label::new(Some(&caption));
         host.set_xalign(0.0);
         host.set_ellipsize(gtk::pango::EllipsizeMode::End);
         host.add_css_class("caption");

@@ -25,9 +25,9 @@ impl Failure {
                 Self::Security(Security::LegacyOnly)
             }
             // What came back wasn't an X.224 Connection Confirm.
-            ConnectorErrorKind::Decode(_) => Self::Unreachable(Unreachable::NotRdp),
+            ConnectorErrorKind::Decode(_) => Self::Unreachable(Unreachable::NotServer),
             // Not even framed as RDP: an SSH or VNC port, say.
-            _ if undecodable(error) => Self::Unreachable(Unreachable::NotRdp),
+            _ if undecodable(error) => Self::Unreachable(Unreachable::NotServer),
             _ => match io_kind(error) {
                 Some(
                     ErrorKind::ConnectionReset | ErrorKind::UnexpectedEof | ErrorKind::BrokenPipe,

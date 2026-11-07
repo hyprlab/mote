@@ -370,6 +370,7 @@ mod tests {
         let size = var("MOTE_TEST_SIZE", "1024x768");
         let (width, height) = size.split_once('x').expect("<width>x<height>");
         let target = Target {
+            protocol: crate::connection::Protocol::Rdp,
             host: host.into(),
             port: port.parse().expect("port"),
             addresses: vec![(host.into(), port.parse().expect("port"))],
@@ -520,6 +521,7 @@ mod tests {
                     }
                 }
                 Event::Cursor(_) => eprintln!("cursor"),
+                Event::Bell => eprintln!("bell"),
                 Event::Trying(address) => eprintln!("trying {address}"),
                 Event::Ended(ending) => {
                     let text = match ending {
@@ -533,7 +535,7 @@ mod tests {
                             Unreachable::Refused => "connection refused",
                             Unreachable::NoAnswer => "no answer",
                             Unreachable::Closed => "closed at once",
-                            Unreachable::NotRdp => "not rdp",
+                            Unreachable::NotServer => "not rdp",
                             Unreachable::Other(_) => "unreachable",
                         }
                         .to_owned(),
@@ -545,10 +547,12 @@ mod tests {
                             Security::NoCertificate => "no certificate",
                             Security::LegacyOnly => "legacy only",
                             Security::OldTls => "old tls",
+                            Security::Unsupported(_) => "unsupported",
                             Security::Other(_) => "security",
                         }
                         .to_owned(),
                         Ending::Failed(Failure::Rejected) => "rejected".to_owned(),
+                        Ending::Failed(Failure::Declined(why)) => format!("declined: {why}"),
                         Ending::Failed(Failure::Addresses(_)) => "no address led there".to_owned(),
                         Ending::Failed(Failure::Ssh(why) | Failure::Gateway(why)) => match why {
                             Tunnel::Unreachable(_) => "hop unreachable".to_owned(),

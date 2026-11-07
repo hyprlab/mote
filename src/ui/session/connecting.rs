@@ -66,6 +66,7 @@ impl Session {
         };
         self.display.set_asked(width, height);
         let target = remote::Target {
+            protocol: self.connection.protocol,
             host: self.connection.host.clone(),
             port: self.connection.port,
             addresses: self.connection.addresses(),

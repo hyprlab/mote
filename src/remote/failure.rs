@@ -25,6 +25,8 @@ pub(crate) enum Failure {
     Security(Security),
     /// The server ended the connection as it began, giving no reason.
     Rejected,
+    /// The server turned the connection down, in its own words.
+    Declined(String),
     /// The connection dropped.
     Lost(String),
     /// The SSH tunnel couldn't be opened.
@@ -62,8 +64,8 @@ pub(crate) enum Unreachable {
     /// It took the connection and closed it before anything began, as GNOME
     /// Remote Desktop does when it has no credentials.
     Closed,
-    /// Something answered, but not in RDP.
-    NotRdp,
+    /// Something answered, but not in the protocol asked for.
+    NotServer,
     Other(String),
 }
 
@@ -74,6 +76,9 @@ pub(crate) enum Security {
     LegacyOnly,
     /// The server's TLS is older than 1.2.
     OldTls,
+    /// The VNC server asks only for kinds of security this side lacks; the
+    /// names of those it offered.
+    Unsupported(String),
     Other(String),
 }
 
@@ -120,7 +125,7 @@ impl Failure {
             Self::Lost(_) => true,
             Self::Unreachable(why)
             | Self::Ssh(Tunnel::Unreachable(why))
-            | Self::Gateway(Tunnel::Unreachable(why)) => !matches!(why, Unreachable::NotRdp),
+            | Self::Gateway(Tunnel::Unreachable(why)) => !matches!(why, Unreachable::NotServer),
             Self::Ssh(Tunnel::NoRoute(_)) | Self::Gateway(Tunnel::NoRoute(_)) => true,
             Self::Addresses(tried) => tried.iter().any(|(_, failure)| failure.passing()),
             _ => false,
@@ -171,7 +176,7 @@ mod tests {
     #[test]
     fn only_a_way_that_led_nowhere_moves_on_to_another_address() {
         assert!(Failure::Unreachable(Unreachable::NotFound).not_there());
-        assert!(Failure::Unreachable(Unreachable::NotRdp).not_there());
+        assert!(Failure::Unreachable(Unreachable::NotServer).not_there());
         assert!(Failure::Ssh(Tunnel::NoRoute(String::new())).not_there());
         assert!(!Failure::Ssh(Tunnel::Refused).not_there());
         assert!(!Failure::Refused.not_there());

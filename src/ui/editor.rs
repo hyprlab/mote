@@ -8,10 +8,16 @@ use std::rc::Rc;
 use adw::prelude::*;
 use relm4::prelude::*;
 
-use crate::connection::{Connection, Network, Quality, Scaling, parse_mac, split_address};
+use crate::connection::{
+    Connection, Network, Protocol, Quality, Scaling, parse_mac, split_address,
+};
 use crate::i18n::i18n;
 use crate::secrets::{self, Password, Secret};
 use crate::ui::avatar;
+
+mod addresses;
+
+use addresses::{moved, other_addresses, other_row};
 
 pub(crate) struct EditorInit {
     pub(crate) connection: Connection,
@@ -39,6 +45,7 @@ struct Rows {
     /// The other addresses: a row each, under `other`.
     other: adw::ExpanderRow,
     others: Vec<adw::EntryRow>,
+    protocol: adw::ComboRow,
     port: adw::SpinRow,
     group: GroupRow,
     username: adw::EntryRow,
@@ -177,6 +184,7 @@ impl Component for Editor {
             host: entry(&i18n("Address"), &c.host),
             other: adw::ExpanderRow::new(),
             others: Vec::new(),
+            protocol: adw::ComboRow::new(),
             port: adw::SpinRow::with_range(1.0, 65535.0, 1.0),
             group: GroupRow::new(&c.group, init.groups.clone()),
             username: entry(&i18n("User Name"), &c.username),
@@ -207,6 +215,16 @@ impl Component for Editor {
             folder_path: Rc::new(RefCell::new(c.folder.clone())),
         };
         folder_row(&rows.folder, &rows.folder_path);
+        let labels: Vec<&str> = Protocol::ALL.iter().map(|p| p.name()).collect();
+        rows.protocol.set_title(&i18n("Protocol"));
+        rows.protocol
+            .set_model(Some(&gtk::StringList::new(&labels)));
+        rows.protocol.set_selected(
+            Protocol::ALL
+                .iter()
+                .position(|p| *p == c.protocol)
+                .unwrap_or_default() as u32,
+        );
         let labels: Vec<String> = Scaling::ALL
             .into_iter()
             .map(crate::ui::session::scaling_label)
@@ -366,6 +384,7 @@ impl Component for Editor {
             rows.name.upcast_ref::<gtk::Widget>(),
             rows.host.upcast_ref(),
             rows.other.upcast_ref(),
+            rows.protocol.upcast_ref(),
             rows.port.upcast_ref(),
             rows.group.row.upcast_ref(),
         ] {
@@ -416,6 +435,7 @@ impl Component for Editor {
         commands.add(&rows.command_before);
         commands.add(&rows.command_after);
         page.add(&commands);
+        follow_protocol(&rows, c.protocol, sharing.upcast());
 
         if !init.is_new {
             for kind in Secret::ALL {
@@ -513,6 +533,10 @@ impl Component for Editor {
                 r.port.update();
                 let connection = Connection {
                     name: r.name.text().into(),
+                    protocol: Protocol::ALL
+                        .get(r.protocol.selected() as usize)
+                        .copied()
+                        .unwrap_or_default(),
                     host: r.host.text().into(),
                     port: r.port.value() as u16,
                     other_addresses: r.others.iter().map(|row| row.text().into()).collect(),
@@ -659,6 +683,39 @@ impl Editor {
     }
 }
 
+/// Show only what applies to the protocol chosen, and move the port to
+/// the new protocol's own while it is still the old one's. VNC takes a
+/// password alone, and none of RDP's codecs, gateway or sharing; the VNC
+/// clipboard comes with section 16.
+fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
+    let rdp_only: Vec<gtk::Widget> = vec![
+        rows.username.clone().upcast(),
+        rows.domain.clone().upcast(),
+        rows.quality.clone().upcast(),
+        rows.network.clone().upcast(),
+        rows.gateway.clone().upcast(),
+        sharing,
+    ];
+    let show = move |protocol: Protocol| {
+        for row in &rdp_only {
+            row.set_visible(protocol == Protocol::Rdp);
+        }
+    };
+    show(protocol);
+    let (port, last) = (rows.port.clone(), Cell::new(protocol));
+    rows.protocol.connect_selected_notify(move |row| {
+        let protocol = Protocol::ALL
+            .get(row.selected() as usize)
+            .copied()
+            .unwrap_or_default();
+        if port.value() as u16 == last.get().port() {
+            port.set_value(protocol.port().into());
+        }
+        last.set(protocol);
+        show(protocol);
+    });
+}
+
 fn password_entry(title: &str) -> adw::PasswordEntryRow {
     let row = adw::PasswordEntryRow::new();
     row.set_title(title);
@@ -666,192 +723,12 @@ fn password_entry(title: &str) -> adw::PasswordEntryRow {
     row
 }
 
-fn entry(title: &str, text: &str) -> adw::EntryRow {
+pub(super) fn entry(title: &str, text: &str) -> adw::EntryRow {
     let row = adw::EntryRow::new();
     row.set_title(title);
     row.set_text(text);
     row.set_activates_default(true);
     row
-}
-
-/// The row the other addresses go under, with the button that adds one.
-fn other_addresses(row: &adw::ExpanderRow, sender: &ComponentSender<Editor>) {
-    row.set_title(&i18n("Other Addresses"));
-    row.set_subtitle(&i18n("Tried in order when the address can’t be reached"));
-    let label = i18n("Add Address");
-    let add = gtk::Button::builder()
-        .icon_name("list-add-symbolic")
-        .tooltip_text(&label)
-        .valign(gtk::Align::Center)
-        .css_classes(["flat"])
-        .build();
-    add.update_property(&[gtk::accessible::Property::Label(&label)]);
-    let input = sender.input_sender().clone();
-    add.connect_clicked(move |_| input.emit(EditorMsg::AddAddress));
-    row.add_suffix(&add);
-}
-
-fn other_row(address: &str, sender: &ComponentSender<Editor>) -> adw::EntryRow {
-    let row = entry(&i18n("Address"), address);
-    let input = sender.input_sender().clone();
-    row.connect_changed(move |_| input.emit(EditorMsg::Changed));
-    let remove = gtk::Button::builder()
-        .icon_name("user-trash-symbolic")
-        .tooltip_text(i18n("Remove"))
-        .valign(gtk::Align::Center)
-        .css_classes(["flat"])
-        .build();
-    remove.update_property(&[gtk::accessible::Property::Label(&i18n("Remove Address"))]);
-    let (input, weak) = (sender.input_sender().clone(), row.downgrade());
-    remove.connect_clicked(move |_| {
-        if let Some(row) = weak.upgrade() {
-            input.emit(EditorMsg::RemoveAddress(row));
-        }
-    });
-    row.add_suffix(&remove);
-    row.add_css_class("other-address");
-    drag_to_reorder(&row, sender);
-    row
-}
-
-/// The address's handle drags it to another place among them, and Alt+Up
-/// and Alt+Down do the same from the keyboard. The handle alone, as a drag
-/// on the rest of the row selects its text.
-fn drag_to_reorder(row: &adw::EntryRow, sender: &ComponentSender<Editor>) {
-    use gtk::gdk;
-
-    let handle = gtk::Image::from_icon_name("list-drag-handle-symbolic");
-    handle.add_css_class("dim-label");
-    handle.set_cursor_from_name(Some("grab"));
-    row.add_prefix(&handle);
-
-    let source = gtk::DragSource::new();
-    source.set_actions(gdk::DragAction::MOVE);
-    // Where on the handle it was grabbed, so the card stays under the pointer.
-    let grabbed_at = Rc::new(Cell::new((0.0, 0.0)));
-    let (weak, at) = (row.downgrade(), grabbed_at.clone());
-    source.connect_prepare(move |_, x, y| {
-        at.set((x, y));
-        let row = weak.upgrade()?;
-        Some(gdk::ContentProvider::for_value(&row.to_value()))
-    });
-    let (weak, grabbed) = (row.downgrade(), handle.downgrade());
-    source.connect_drag_begin(move |_, drag| {
-        let (Some(row), Some(grabbed)) = (weak.upgrade(), grabbed.upgrade()) else {
-            return;
-        };
-        drag_card(&row, drag);
-        let (x, y) = grabbed_at.get();
-        let at = grabbed
-            .compute_point(&row, &gtk::graphene::Point::new(x as f32, y as f32))
-            .unwrap_or_else(gtk::graphene::Point::zero);
-        drag.set_hotspot(at.x() as i32, at.y() as i32);
-        row.add_css_class("dragged");
-    });
-    let weak = row.downgrade();
-    source.connect_drag_end(move |_, _, _| {
-        if let Some(row) = weak.upgrade() {
-            row.remove_css_class("dragged");
-        }
-    });
-    handle.add_controller(source);
-
-    let target = gtk::DropTarget::new(adw::EntryRow::static_type(), gdk::DragAction::MOVE);
-    let weak = row.downgrade();
-    target.connect_motion(move |_, _, y| {
-        if let Some(row) = weak.upgrade() {
-            let after = y > f64::from(row.height()) / 2.0;
-            mark_drop(&row, Some(after));
-        }
-        gdk::DragAction::MOVE
-    });
-    let weak = row.downgrade();
-    target.connect_leave(move |_| {
-        if let Some(row) = weak.upgrade() {
-            mark_drop(&row, None);
-        }
-    });
-    let (input, weak) = (sender.input_sender().clone(), row.downgrade());
-    target.connect_drop(move |_, value, _, y| {
-        let (Ok(dragged), Some(beside)) = (value.get::<adw::EntryRow>(), weak.upgrade()) else {
-            return false;
-        };
-        mark_drop(&beside, None);
-        let after = y > f64::from(beside.height()) / 2.0;
-        input.emit(EditorMsg::MoveAddress {
-            row: dragged,
-            beside,
-            after,
-        });
-        true
-    });
-    row.add_controller(target);
-
-    let keys = gtk::EventControllerKey::new();
-    let (input, weak) = (sender.input_sender().clone(), row.downgrade());
-    keys.connect_key_pressed(move |_, key, _, mods| {
-        let down = match key {
-            gdk::Key::Up => false,
-            gdk::Key::Down => true,
-            _ => return gtk::glib::Propagation::Proceed,
-        };
-        match weak
-            .upgrade()
-            .filter(|_| mods == gdk::ModifierType::ALT_MASK)
-        {
-            Some(row) => {
-                input.emit(EditorMsg::NudgeAddress { row, down });
-                gtk::glib::Propagation::Stop
-            }
-            None => gtk::glib::Propagation::Proceed,
-        }
-    });
-    row.add_controller(keys);
-}
-
-/// Mark where a dragged address would land, as a line along the row's edge:
-/// `Some(true)` for after this row, `Some(false)` for before it.
-fn mark_drop(row: &adw::EntryRow, after: Option<bool>) {
-    for (class, on) in [
-        ("drop-above", after == Some(false)),
-        ("drop-below", after == Some(true)),
-    ] {
-        if on {
-            row.add_css_class(class);
-        } else {
-            row.remove_css_class(class);
-        }
-    }
-}
-
-/// What follows the pointer during a drag: a row with the address on it,
-/// as wide as the one it stands for.
-fn drag_card(row: &adw::EntryRow, drag: &gtk::gdk::Drag) {
-    let copy = adw::ActionRow::new();
-    copy.set_use_markup(false);
-    copy.set_title(&row.text());
-    copy.add_prefix(&gtk::Image::from_icon_name("list-drag-handle-symbolic"));
-    let card = gtk::ListBox::new();
-    card.add_css_class("boxed-list");
-    card.set_size_request(row.width(), row.height());
-    card.append(&copy);
-    gtk::DragIcon::for_drag(drag).set_child(Some(&card));
-}
-
-/// Move `item` to just before or after `beside`, both being in `list`.
-fn moved<T: PartialEq>(list: &mut Vec<T>, item: &T, beside: &T, after: bool) {
-    if item == beside || !list.contains(beside) {
-        return;
-    }
-    let Some(from) = list.iter().position(|other| other == item) else {
-        return;
-    };
-    let item = list.remove(from);
-    let to = list
-        .iter()
-        .position(|other| other == beside)
-        .unwrap_or_default();
-    list.insert(to + usize::from(after), item);
 }
 
 pub(crate) fn quality_label(quality: Quality) -> String {
@@ -961,25 +838,5 @@ fn shown_path(path: &str) -> String {
         Ok(rest) if rest.as_os_str().is_empty() => "~".to_owned(),
         Ok(rest) => format!("~/{}", rest.display()),
         Err(_) => path.to_owned(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::moved;
-
-    #[test]
-    fn an_address_lands_beside_the_one_it_is_dropped_on() {
-        let after = |item, beside, after| {
-            let mut list = vec![1, 2, 3, 4];
-            moved(&mut list, &item, &beside, after);
-            list
-        };
-        assert_eq!(after(1, 3, true), [2, 3, 1, 4]);
-        assert_eq!(after(1, 3, false), [2, 1, 3, 4]);
-        assert_eq!(after(4, 1, false), [4, 1, 2, 3]);
-        assert_eq!(after(4, 2, true), [1, 2, 4, 3]);
-        assert_eq!(after(2, 2, true), [1, 2, 3, 4]);
-        assert_eq!(after(9, 2, true), [1, 2, 3, 4]);
     }
 }

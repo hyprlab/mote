@@ -1,7 +1,7 @@
 //! What the window says when a session ends: a title and a sentence that
 //! names the likely cause on a Linux server and where to fix it.
 
-use crate::connection::Connection;
+use crate::connection::{Connection, Protocol};
 use crate::i18n::{i18n, i18n_f};
 use crate::remote::{Disconnect, Ending, Failure, Security, Tunnel, Unreachable};
 
@@ -37,9 +37,19 @@ pub(super) fn shown(
     match ending {
         Ending::Closed => Shown::Nothing,
         Ending::Failed(failure) => match failure {
+            Failure::Refused if connection.protocol == Protocol::Vnc => Shown::SignIn(i18n(
+                "The password was not accepted. VNC servers keep a password of their own, not the login password, and VNC Authentication reads only its first 8 characters.",
+            )),
             Failure::Refused => Shown::SignIn(i18n(
                 "The user name or password was not accepted. GNOME Remote Desktop takes the ones set in its Remote Desktop settings, not the login password.",
             )),
+            Failure::Declined(reason) => page(
+                could_not(),
+                i18n_f(
+                    "{host} turned the connection down: “{reason}”",
+                    &[("host", &host), ("reason", &reason)],
+                ),
+            ),
             Failure::NotAllowed => page(
                 could_not(),
                 named("This account is not allowed to connect to {host}."),
@@ -68,6 +78,10 @@ pub(super) fn shown(
                     ),
                     Security::OldTls => named(
                         "{host} only offers an outdated version of TLS. Update its remote desktop server, or allow TLS 1.2 or later.",
+                    ),
+                    Security::Unsupported(kinds) => i18n_f(
+                        "{host} asks for security this version can’t use yet: {kinds}.",
+                        &[("host", &host), ("kinds", &kinds)],
                     ),
                     Security::Other(code) => {
                         tracing::warn!("negotiation failed: {code}");
@@ -150,7 +164,7 @@ fn unreachable(why: Unreachable, host: &str) -> String {
         Unreachable::Closed => named(
             "{host} closed the connection at once. If it uses GNOME Remote Login, check that a user name and password are set, and restart its remote desktop service after changing them.",
         ),
-        Unreachable::NotRdp => {
+        Unreachable::NotServer => {
             named("{host} answered, but not as a remote desktop server. Check the port.")
         }
         Unreachable::Other(error) => {

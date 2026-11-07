@@ -150,6 +150,9 @@ msgstr "Fermer la fenêtre"
 msgid "Connection"
 msgstr "Connexion"
 
+msgid "Protocol"
+msgstr ""
+
 msgid "Address"
 msgstr "Adresse"
 
@@ -298,6 +301,18 @@ msgstr "Images"
 msgid "Choose Image"
 msgstr "Choisir une image"
 
+msgid "Tried in order when the address can’t be reached"
+msgstr ""
+
+msgid "Add Address"
+msgstr ""
+
+msgid "Remove"
+msgstr "Retirer"
+
+msgid "Remove Address"
+msgstr ""
+
 msgid "Save"
 msgstr "Enregistrer"
 
@@ -397,18 +412,6 @@ msgid ""
 msgstr ""
 "Exécutées par sh, avec la connexion dans $MOTE_HOST, $MOTE_PORT, $MOTE_USER "
 "et $MOTE_NAME. Une commande en échec avant la connexion interrompt celle-ci."
-
-msgid "Tried in order when the address can’t be reached"
-msgstr ""
-
-msgid "Add Address"
-msgstr ""
-
-msgid "Remove"
-msgstr "Retirer"
-
-msgid "Remove Address"
-msgstr ""
 
 msgid "Best Available"
 msgstr "Meilleur disponible"
@@ -620,6 +623,11 @@ msgid "Could Not Connect"
 msgstr "Connexion impossible"
 
 msgid ""
+"The password was not accepted. VNC servers keep a password of their own, not "
+"the login password, and VNC Authentication reads only its first 8 characters."
+msgstr ""
+
+msgid ""
 "The user name or password was not accepted. GNOME Remote Desktop takes the "
 "ones set in its Remote Desktop settings, not the login password."
 msgstr ""
@@ -627,11 +635,17 @@ msgstr ""
 "Desktop utilise ceux définis dans ses paramètres de bureau à distance, et "
 "non le mot de passe de session."
 
+msgid "{host} turned the connection down: “{reason}”"
+msgstr ""
+
 msgid "Not Connected"
 msgstr "Non connecté"
 
 msgid "The computer’s identity was not trusted."
 msgstr "L’identité de l’ordinateur n’est pas considérée comme fiable."
+
+msgid "{host} asks for security this version can’t use yet: {kinds}."
+msgstr ""
 
 msgid "Disconnected"
 msgstr "Déconnecté"

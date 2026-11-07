@@ -44,6 +44,10 @@ impl SignIn {
         let remember = adw::SwitchRow::new();
         remember.set_title(&i18n("Remember Password"));
         remember.set_active(true);
+        // VNC Authentication takes a password alone.
+        let vnc = connection.protocol == crate::connection::Protocol::Vnc;
+        username.set_visible(!vnc);
+        domain.set_visible(!vnc);
 
         let group = adw::PreferencesGroup::new();
         for row in [
@@ -94,7 +98,7 @@ impl SignIn {
 
     /// Put the cursor where typing should start.
     pub(super) fn focus(&self) {
-        if self.username.text().trim().is_empty() {
+        if self.username.is_visible() && self.username.text().trim().is_empty() {
             self.username.grab_focus();
         } else {
             self.password.grab_focus();

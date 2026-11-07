@@ -19,7 +19,10 @@ pub(crate) use failure::{Disconnect, Ending, Failure, Security, Tunnel, Unreacha
 
 /// Connect to `target`, and keep the session going until it ends.
 pub(crate) fn start(target: Target) -> (Handle, mpsc::Receiver<Event>) {
-    crate::rdp::start(target)
+    match target.protocol {
+        crate::connection::Protocol::Rdp => crate::rdp::start(target),
+        crate::connection::Protocol::Vnc => crate::vnc::start(target),
+    }
 }
 
 /// A pointer shape from the server.
@@ -35,6 +38,7 @@ pub(crate) struct Pointer {
 /// Where to connect, and as whom.
 #[derive(Clone)]
 pub(crate) struct Target {
+    pub(crate) protocol: crate::connection::Protocol,
     /// Where the connection is going right now.
     pub(crate) host: String,
     pub(crate) port: u16,
@@ -116,6 +120,8 @@ pub(crate) enum Event {
     /// [`Command::FrameDone`].
     Frame(Frame),
     Cursor(Cursor),
+    /// The server rang its bell.
+    Bell,
     Clipboard(ClipboardEvent),
     /// The server can't spread its desktop over several monitors.
     OneMonitor,
