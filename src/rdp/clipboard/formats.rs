@@ -41,7 +41,7 @@ pub(super) fn unicode_from_text(text: &str) -> Vec<u8> {
 
 /// The HTML in an HTML Format payload: from `StartHTML` to `EndHTML`, or
 /// the fragment alone when those are missing.
-pub(super) fn html_from_cf_html(data: &[u8]) -> Option<String> {
+pub(crate) fn html_from_cf_html(data: &[u8]) -> Option<String> {
     let end = data.iter().position(|b| *b == 0).unwrap_or(data.len());
     let data = &data[..end];
     let header = String::from_utf8_lossy(&data[..data.len().min(512)]);
@@ -59,7 +59,7 @@ pub(super) fn html_from_cf_html(data: &[u8]) -> Option<String> {
 }
 
 /// An HTML Format payload around `html`, a fragment or a whole document.
-pub(super) fn cf_html_from_html(html: &str) -> Vec<u8> {
+pub(crate) fn cf_html_from_html(html: &str) -> Vec<u8> {
     // The header's offsets are written with a fixed width, so its length is
     // known before they are.
     const HEADER: &str = "Version:0.9\r\nStartHTML:0000000000\r\nEndHTML:0000000000\r\n\

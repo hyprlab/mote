@@ -19,7 +19,7 @@ use crate::remote::{Ending, Failure, Pointer, Rect, describe};
 /// The largest compressed rectangle taken: anything larger is more likely
 /// damage than a picture.
 const MAX_COMPRESSED: usize = 64 << 20;
-/// The longest clipboard text taken, until section 16 shares it.
+/// The largest clipboard message taken.
 const MAX_CUT_TEXT: usize = 16 << 20;
 /// The largest pointer shape taken.
 const MAX_CURSOR: u16 = 1024;
@@ -41,6 +41,8 @@ pub(super) mod encoding {
     pub(in super::super) const EXTENDED_MOUSE_BUTTONS: i32 = -316;
     pub(in super::super) const FENCE: i32 = -312;
     pub(in super::super) const CONTINUOUS_UPDATES: i32 = -313;
+    /// 0xC0A1E5CE.
+    pub(in super::super) const EXTENDED_CLIPBOARD: i32 = -1_063_131_698;
     /// Tight's JPEG quality, 0 to 9, as this plus the level.
     pub(in super::super) const JPEG_QUALITY_0: i32 = -32;
     /// The server's compression effort, 0 to 9, as this plus the level.
@@ -77,6 +79,10 @@ pub(super) enum Note {
         flags: u32,
         payload: Vec<u8>,
     },
+    /// The server's original cut text, in Latin-1.
+    CutText(Vec<u8>),
+    /// An extended clipboard message, past its length.
+    ExtendedClipboard(Vec<u8>),
     /// The desktop has a new size, and holds nothing yet.
     Resized(u16, u16),
     /// The server's pointer; none for a hidden one.
@@ -179,13 +185,22 @@ impl<R: AsyncRead + Unpin> Reader<R> {
             }
             2 => self.note(Note::Bell).await,
             // ServerCutText, shared once section 16 comes.
+            // ServerCutText: the original, a length and Latin-1 text; or,
+            // with a negative length, an extended clipboard message.
             3 => {
                 self.skip(3).await?;
-                let length = self.read.read_i32().await?.unsigned_abs() as usize;
-                if length > MAX_CUT_TEXT {
-                    return Err(Stop::Bad(format!("{length} bytes of clipboard")));
+                let length = self.read.read_i32().await?;
+                let size = length.unsigned_abs() as usize;
+                if size > MAX_CUT_TEXT {
+                    return Err(Stop::Bad(format!("{size} bytes of clipboard")));
                 }
-                self.skip(length).await
+                let data = self.bytes(size).await?;
+                self.note(if length < 0 {
+                    Note::ExtendedClipboard(data)
+                } else {
+                    Note::CutText(data)
+                })
+                .await
             }
             // EndOfContinuousUpdates.
             150 => self.note(Note::ContinuousUpdates).await,

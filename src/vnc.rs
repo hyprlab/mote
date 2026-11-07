@@ -3,6 +3,7 @@
 //! spoken to through [`crate::remote`]. The handshake runs over a stream
 //! the engine holds, so it decides when, if ever, the stream becomes TLS.
 
+mod clipboard;
 mod decode;
 mod dh;
 mod h264;
@@ -72,10 +73,12 @@ async fn drive(
     // waits before the next try.
     let mut lost: Option<(std::time::Instant, std::time::Duration)> = None;
     let mut keys = input::Keys::default();
+    // The last copy here while no session was up, for the next to hear.
+    let mut early = None;
     loop {
         let opened = tokio::select! {
             opened = open(target, events) => opened,
-            () = closed(commands) => return Ok(Ending::Closed),
+            () = closed(commands, &mut early) => return Ok(Ending::Closed),
         };
         let opened = match opened {
             Ok(opened) => opened,
@@ -84,7 +87,7 @@ async fn drive(
                     tracing::info!("reconnecting failed; trying again in {wait:?}");
                     tokio::select! {
                         () = tokio::time::sleep(*wait) => {}
-                        () = closed(commands) => return Ok(Ending::Closed),
+                        () = closed(commands, &mut early) => return Ok(Ending::Closed),
                     }
                     *wait = (*wait * 2).min(std::time::Duration::from_secs(10));
                     continue;
@@ -106,6 +109,7 @@ async fn drive(
             events,
             commands,
             &mut keys,
+            early.take(),
         )
         .await
         {
@@ -183,12 +187,20 @@ async fn attempt(
     handshake::run(stream, target, events, asked).await
 }
 
-/// Resolves when the interface closes the session; whatever else it sends
-/// before there is a session is of no use to one.
-async fn closed(commands: &mut mpsc::UnboundedReceiver<Command>) {
+/// Resolves when the interface closes the session. What was copied here
+/// meanwhile is kept for the session; a paste can't be answered without
+/// one, and the rest is of no use to it.
+async fn closed(
+    commands: &mut mpsc::UnboundedReceiver<Command>,
+    early: &mut Option<crate::remote::ClipboardCommand>,
+) {
     while let Some(command) = commands.recv().await {
-        if matches!(command, Command::Close) {
-            return;
+        match command {
+            Command::Close => return,
+            Command::Clipboard(copied @ crate::remote::ClipboardCommand::Copied { .. }) => {
+                *early = Some(copied);
+            }
+            _ => {}
         }
     }
 }
@@ -196,8 +208,9 @@ async fn closed(commands: &mut mpsc::UnboundedReceiver<Command>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::remote::clipboard::{Content, Kind};
     use crate::remote::input::{Input, Key};
-    use crate::remote::{Frame, Via};
+    use crate::remote::{ClipboardCommand, ClipboardEvent, Frame, Via};
 
     /// The frame as a PPM picture.
     fn save_ppm(path: &str, frame: &Frame) {
@@ -263,7 +276,9 @@ mod tests {
             scale: 100,
             quality: Default::default(),
             network: Default::default(),
-            clipboard: false,
+            // MOTE_TEST_CLIPBOARD=<text>: offer that text as copied here,
+            // and paste what the server copies.
+            clipboard: std::env::var_os("MOTE_TEST_CLIPBOARD").is_some(),
             clipboard_files: false,
             sound: false,
             microphone: false,
@@ -290,7 +305,35 @@ mod tests {
         let mut typing_at = None;
         while let Some(event) = events.blocking_recv() {
             match event {
-                Event::Connected { width, height } => eprintln!("connected {width}x{height}"),
+                Event::Connected { width, height } => {
+                    eprintln!("connected {width}x{height}");
+                    if std::env::var_os("MOTE_TEST_CLIPBOARD").is_some() {
+                        handle.send(Command::Clipboard(ClipboardCommand::Copied {
+                            kinds: vec![Kind::Text],
+                            files: Vec::new(),
+                        }));
+                    }
+                }
+                Event::Clipboard(ClipboardEvent::Copied(kinds)) => {
+                    eprintln!("remote copied {kinds:?}");
+                    for kind in kinds {
+                        let (reply, answer) = tokio::sync::oneshot::channel();
+                        handle.send(Command::Clipboard(ClipboardCommand::Paste { kind, reply }));
+                        std::thread::spawn(move || match answer.blocking_recv() {
+                            Ok(Some(Content::Text(text))) => eprintln!("pasted text {text:?}"),
+                            Ok(Some(Content::Html(html))) => eprintln!("pasted html {html:?}"),
+                            other => eprintln!("pasted {:?}", other.ok().flatten().is_some()),
+                        });
+                    }
+                }
+                Event::Clipboard(ClipboardEvent::Wanted { kind, reply, .. }) => {
+                    eprintln!("server wants {kind:?}");
+                    let text = var("MOTE_TEST_CLIPBOARD", "");
+                    let _ = reply.send(match kind {
+                        Kind::Text => Some(Content::Text(text)),
+                        _ => None,
+                    });
+                }
                 Event::Certificate {
                     fingerprint,
                     of,

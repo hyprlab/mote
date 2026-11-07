@@ -350,9 +350,6 @@ msgstr ""
 msgid "Clipboard"
 msgstr ""
 
-msgid "Text only with KRdp; xrdp leaves out folders"
-msgstr ""
-
 msgid "Share Copied Files"
 msgstr ""
 
@@ -402,6 +399,12 @@ msgstr ""
 msgid ""
 "Run by sh, with the connection in $MOTE_HOST, $MOTE_PORT, $MOTE_USER and "
 "$MOTE_NAME. A failed command before connecting stops the connection."
+msgstr ""
+
+msgid "Text only with KRdp; xrdp leaves out folders"
+msgstr ""
+
+msgid "Text only"
 msgstr ""
 
 msgid "Best Available"

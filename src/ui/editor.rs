@@ -293,8 +293,6 @@ impl Component for Editor {
         rows.new_window.set_title(&i18n("Open in New Window"));
         rows.new_window.set_active(c.new_window);
         rows.clipboard.set_title(&i18n("Clipboard"));
-        rows.clipboard
-            .set_subtitle(&i18n("Text only with KRdp; xrdp leaves out folders"));
         rows.clipboard.set_active(c.clipboard);
         rows.clipboard_files.set_title(&i18n("Share Copied Files"));
         rows.clipboard_files
@@ -459,7 +457,7 @@ impl Component for Editor {
         commands.add(&rows.command_before);
         commands.add(&rows.command_after);
         page.add(&commands);
-        follow_protocol(&rows, c.protocol, sharing.upcast());
+        follow_protocol(&rows, c.protocol);
 
         if !init.is_new {
             for kind in Secret::ALL {
@@ -714,9 +712,9 @@ impl Editor {
 
 /// Show only what applies to the protocol chosen, and move the port to
 /// the new protocol's own while it is still the old one's. VNC takes no
-/// domain, and none of RDP's codecs, gateway or sharing; the VNC clipboard
-/// comes with section 16. Only VNC can go without encryption.
-fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
+/// domain, none of RDP's codecs or gateway, and shares the clipboard's
+/// text alone. Only VNC can go without encryption.
+fn follow_protocol(rows: &Rows, protocol: Protocol) {
     let vnc_only = [
         rows.allow_unencrypted.clone().upcast::<gtk::Widget>(),
         rows.vnc_codec.clone().upcast(),
@@ -726,9 +724,17 @@ fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
         rows.quality.clone().upcast(),
         rows.network.clone().upcast(),
         rows.gateway.clone().upcast(),
-        sharing,
+        rows.clipboard_files.clone().upcast(),
+        rows.sound.clone().upcast(),
+        rows.microphone.clone().upcast(),
+        rows.folder.clone().upcast(),
     ];
+    let clipboard = rows.clipboard.clone();
     let show = move |protocol: Protocol| {
+        clipboard.set_subtitle(&match protocol {
+            Protocol::Rdp => i18n("Text only with KRdp; xrdp leaves out folders"),
+            Protocol::Vnc => i18n("Text only"),
+        });
         for row in &rdp_only {
             row.set_visible(protocol == Protocol::Rdp);
         }

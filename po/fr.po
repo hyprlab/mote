@@ -358,9 +358,6 @@ msgstr "Ouvrir dans une nouvelle fenêtre"
 msgid "Clipboard"
 msgstr "Presse-papiers"
 
-msgid "Text only with KRdp; xrdp leaves out folders"
-msgstr "Texte uniquement avec KRdp ; xrdp exclut les dossiers"
-
 msgid "Share Copied Files"
 msgstr "Partager les fichiers copiés"
 
@@ -415,6 +412,12 @@ msgid ""
 msgstr ""
 "Exécutées par sh, avec la connexion dans $MOTE_HOST, $MOTE_PORT, $MOTE_USER "
 "et $MOTE_NAME. Une commande en échec avant la connexion interrompt celle-ci."
+
+msgid "Text only with KRdp; xrdp leaves out folders"
+msgstr "Texte uniquement avec KRdp ; xrdp exclut les dossiers"
+
+msgid "Text only"
+msgstr ""
 
 msgid "Best Available"
 msgstr "Meilleur disponible"

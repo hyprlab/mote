@@ -11,6 +11,7 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWriteExt, ReadBuf, WriteHalf};
 use tokio::sync::mpsc;
 
+use super::clipboard::Clipboard;
 use super::decode::Desktop;
 use super::h264::Contexts;
 use super::handshake::{MAX_SIDE, ServerInit};
@@ -20,7 +21,8 @@ use crate::connection::VncCodec;
 use crate::remote::frames::Frames;
 use crate::remote::route::Stream;
 use crate::remote::{
-    Command, Cursor, Ending, Event, Failure, Frame, Monitor, Rect, Target, describe,
+    ClipboardCommand, Command, Cursor, Ending, Event, Failure, Frame, Monitor, Rect, Target,
+    describe,
 };
 
 /// By this many updates, a server that can change its screens has said
@@ -43,7 +45,7 @@ const PIXEL_FORMAT: [u8; 16] = [32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 16, 8, 0, 
 
 /// The encodings to ask for, the one most wanted first. Tight sends JPEG
 /// only to a client that names a quality, so Lossless names none.
-fn encodings(codec: VncCodec, h264: bool) -> Vec<i32> {
+fn encodings(codec: VncCodec, h264: bool, clipboard: bool) -> Vec<i32> {
     #[cfg(test)]
     if let Ok(only) = std::env::var("MOTE_TEST_ENCODING") {
         return test_encodings(&only, h264);
@@ -75,6 +77,9 @@ fn encodings(codec: VncCodec, h264: bool) -> Vec<i32> {
         }
     }
     list.extend(PSEUDO);
+    if clipboard {
+        list.push(encoding::EXTENDED_CLIPBOARD);
+    }
     list
 }
 
@@ -170,6 +175,8 @@ struct Live<'a> {
     received: Arc<AtomicU64>,
     counted: u64,
     stats: crate::stats::Stats,
+    /// Shared with the server, when the connection shares it.
+    clipboard: Option<Clipboard>,
 }
 
 pub(super) async fn run(
@@ -179,6 +186,7 @@ pub(super) async fn run(
     events: &mpsc::Sender<Event>,
     commands: &mut mpsc::UnboundedReceiver<Command>,
     keys: &mut Keys,
+    early: Option<ClipboardCommand>,
 ) -> Result<Ending, Failure> {
     let (read, write) = tokio::io::split(stream);
     let desktop = Arc::new(Mutex::new(Desktop::new(init.width, init.height)));
@@ -186,7 +194,7 @@ pub(super) async fn run(
     let h264 = (target.vnc_codec != VncCodec::Lossless)
         .then(Contexts::new)
         .flatten();
-    let encodings = encodings(target.vnc_codec, h264.is_some());
+    let encodings = encodings(target.vnc_codec, h264.is_some(), target.clipboard);
     let received = Arc::new(AtomicU64::new(0));
     let read = Counting {
         inner: read,
@@ -218,6 +226,7 @@ pub(super) async fn run(
         received,
         counted: 0,
         stats: crate::stats::Stats::new("engine"),
+        clipboard: target.clipboard.then(Clipboard::new),
     };
 
     let mut hello = Vec::with_capacity(128);
@@ -237,7 +246,12 @@ pub(super) async fn run(
     if events.send(connected).await.is_err() {
         return Ok(Ending::Closed);
     }
+    // What was copied here while connecting.
+    if let Some(command) = early {
+        live.clipboard_command(command).await?;
+    }
 
+    let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
     loop {
         let event = tokio::select! {
             note = notes.recv() => {
@@ -266,10 +280,31 @@ pub(super) async fn run(
                     live.resize(width, height).await?
                 }
                 Some(Command::Layout(monitors)) => live.layout(&monitors).await?,
-                // Section 16 brings the clipboard.
-                Some(Command::Clipboard(_)) => None,
+                Some(Command::Clipboard(command)) => {
+                    live.clipboard_command(command).await?;
+                    None
+                }
                 Some(Command::Close) | None => return Ok(Ending::Closed),
             },
+            Some(answer) = async {
+                match &mut live.clipboard {
+                    Some(clipboard) => clipboard.answers.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                let mut out = Vec::new();
+                if let Some(clipboard) = &mut live.clipboard {
+                    clipboard.answered(answer, &mut out);
+                }
+                live.send(&out).await?;
+                None
+            }
+            _ = tick.tick() => {
+                if let Some(clipboard) = &mut live.clipboard {
+                    clipboard.tick();
+                }
+                None
+            }
         };
         if let Some(event) = event
             && events.send(event).await.is_err()
@@ -298,6 +333,16 @@ impl Live<'_> {
                 if !damage.is_empty() {
                     self.since.get_or_insert_with(std::time::Instant::now);
                     self.damage.extend(damage);
+                }
+                if self.updates == 0
+                    && let Some(clipboard) = &mut self.clipboard
+                {
+                    let (mut out, mut events) = (Vec::new(), Vec::new());
+                    clipboard.settle(&mut out, &mut events);
+                    self.send(&out).await?;
+                    for event in events {
+                        self.tell(event).await?;
+                    }
                 }
                 if self.updates < SAID_BY {
                     self.updates += 1;
@@ -370,6 +415,27 @@ impl Live<'_> {
                 }
                 None
             }
+            Note::CutText(data) => {
+                let mut events = Vec::new();
+                if let Some(clipboard) = &mut self.clipboard {
+                    clipboard.cut_text(&data, &mut events);
+                }
+                for event in events {
+                    self.tell(event).await?;
+                }
+                None
+            }
+            Note::ExtendedClipboard(data) => {
+                let (mut out, mut events) = (Vec::new(), Vec::new());
+                if let Some(clipboard) = &mut self.clipboard {
+                    clipboard.extended(&data, &mut out, &mut events);
+                }
+                self.send(&out).await?;
+                for event in events {
+                    self.tell(event).await?;
+                }
+                None
+            }
             Note::Cursor(Some(pointer)) => Some(Event::Cursor(Cursor::Bitmap(pointer.into()))),
             Note::Cursor(None) => Some(Event::Cursor(Cursor::Hidden)),
             Note::Bell => Some(Event::Bell),
@@ -385,6 +451,19 @@ impl Live<'_> {
             // The loop ends the session on it before it gets here.
             Note::Ended(_) => None,
         })
+    }
+
+    async fn clipboard_command(&mut self, command: ClipboardCommand) -> Result<(), Failure> {
+        let Some(clipboard) = &mut self.clipboard else {
+            return Ok(());
+        };
+        let (mut out, mut events) = (Vec::new(), Vec::new());
+        clipboard.command(command, &mut out, &mut events);
+        self.send(&out).await?;
+        for event in events {
+            self.tell(event).await?;
+        }
+        Ok(())
     }
 
     /// Ask for the desktop to be this size, on one screen.
@@ -537,11 +616,11 @@ mod tests {
 
     #[test]
     fn lossless_names_no_jpeg_quality_and_no_h264() {
-        let lossless = encodings(VncCodec::Lossless, true);
+        let lossless = encodings(VncCodec::Lossless, true, false);
         assert_eq!(lossless[0], encoding::ZRLE);
         assert!(!lossless.contains(&encoding::OPEN_H264));
         assert!(!lossless.iter().any(|e| (-32..=-23).contains(e)));
-        let best = encodings(VncCodec::Best, true);
+        let best = encodings(VncCodec::Best, true, true);
         assert_eq!(best[0], encoding::OPEN_H264);
         assert!(best.contains(&(encoding::JPEG_QUALITY_0 + 8)));
     }
