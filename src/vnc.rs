@@ -376,6 +376,15 @@ mod tests {
                             .collect();
                         handle.send(Command::Layout(monitors));
                     }
+                    // MOTE_TEST_CAPS=1: Caps Lock on, Num and Scroll Lock off,
+                    // after the first frame.
+                    if frames == 1 && std::env::var_os("MOTE_TEST_CAPS").is_some() {
+                        handle.send(Command::Input(vec![Input::Locks {
+                            caps: true,
+                            num: false,
+                            scroll: false,
+                        }]));
+                    }
                     match (&typed, typing_at) {
                         (Some(text), None) => {
                             let input = text.chars().flat_map(|c| {

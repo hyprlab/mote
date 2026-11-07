@@ -14,6 +14,9 @@ const NOTCH: i32 = 120;
 pub(super) struct Keys {
     pub(super) qemu: bool,
     pub(super) extended_buttons: bool,
+    /// The server's lock keys, as it last said: Scroll Lock in bit 0, Num
+    /// Lock in 1, Caps Lock in 2. None from a server that doesn't say.
+    pub(super) leds: Option<u8>,
     buttons: u8,
     back: bool,
     forward: bool,
@@ -28,6 +31,7 @@ impl Keys {
     pub(super) fn connected(&mut self) {
         self.qemu = false;
         self.extended_buttons = false;
+        self.leds = None;
     }
 
     /// The bytes to send for `input`.
@@ -96,8 +100,27 @@ impl Keys {
                     self.pointer(out);
                 }
             }
-            // RFB has no message for them.
-            Input::Locks { .. } => {}
+            // RFB has no message to set them: a server that says how its
+            // are has the keys that differ pressed, to match.
+            Input::Locks { caps, num, scroll } => {
+                let Some(leds) = self.leds else {
+                    return;
+                };
+                let wanted = u8::from(scroll) | u8::from(num) << 1 | u8::from(caps) << 2;
+                for (bit, scancode, keysym) in [
+                    (0, 0x46, 0xFF14), // Scroll_Lock
+                    (1, 0x45, 0xFF7F), // Num_Lock
+                    (2, 0x3A, 0xFFE5), // Caps_Lock
+                ] {
+                    if (leds ^ wanted) & (1 << bit) != 0 {
+                        let key = crate::remote::input::Key { scancode, keysym };
+                        for down in [true, false] {
+                            self.message(Input::Key { key, down }, out);
+                        }
+                    }
+                }
+                self.leds = Some(wanted);
+            }
         }
     }
 
@@ -186,6 +209,29 @@ mod tests {
         let mut out = Vec::new();
         keys.message(input, &mut out);
         out
+    }
+
+    #[test]
+    fn presses_the_lock_keys_that_differ_from_the_server_s() {
+        let locks = Input::Locks {
+            caps: true,
+            num: true,
+            scroll: false,
+        };
+        let mut keys = Keys::default();
+        // A server that doesn't say: nothing to go by.
+        assert!(sent(&mut keys, locks).is_empty());
+        // Num Lock on there already: Caps Lock alone, pressed and let go.
+        keys.leds = Some(0b010);
+        assert_eq!(
+            sent(&mut keys, locks),
+            [
+                [4, 1, 0, 0, 0, 0, 0xFF, 0xE5],
+                [4, 0, 0, 0, 0, 0, 0xFF, 0xE5]
+            ]
+            .concat()
+        );
+        assert!(sent(&mut keys, locks).is_empty());
     }
 
     #[test]

@@ -84,7 +84,7 @@ fn encodings(codec: VncCodec, h264: bool, clipboard: bool) -> Vec<i32> {
 }
 
 /// What this side understands beyond pictures.
-const PSEUDO: [i32; 9] = [
+const PSEUDO: [i32; 11] = [
     encoding::CURSOR,
     encoding::DESKTOP_SIZE,
     encoding::EXTENDED_DESKTOP_SIZE,
@@ -94,6 +94,8 @@ const PSEUDO: [i32; 9] = [
     encoding::EXTENDED_MOUSE_BUTTONS,
     encoding::CONTINUOUS_UPDATES,
     encoding::FENCE,
+    encoding::QEMU_LEDS,
+    encoding::VMWARE_LEDS,
 ];
 
 /// In tests, `MOTE_TEST_ENCODING` (tight, zrle, hextile, zlib, h264 or
@@ -446,6 +448,11 @@ impl Live<'_> {
             }
             Note::ExtendedButtons => {
                 keys.extended_buttons = true;
+                None
+            }
+            Note::Leds(state) => {
+                tracing::debug!("the server's lock keys: {state:#05b}");
+                keys.leds = Some(state);
                 None
             }
             // The loop ends the session on it before it gets here.

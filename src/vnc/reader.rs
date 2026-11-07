@@ -43,6 +43,9 @@ pub(super) mod encoding {
     pub(in super::super) const CONTINUOUS_UPDATES: i32 = -313;
     /// 0xC0A1E5CE.
     pub(in super::super) const EXTENDED_CLIPBOARD: i32 = -1_063_131_698;
+    pub(in super::super) const QEMU_LEDS: i32 = -261;
+    /// 0x574D5668.
+    pub(in super::super) const VMWARE_LEDS: i32 = 0x574D_5668;
     /// Tight's JPEG quality, 0 to 9, as this plus the level.
     pub(in super::super) const JPEG_QUALITY_0: i32 = -32;
     /// The server's compression effort, 0 to 9, as this plus the level.
@@ -79,6 +82,9 @@ pub(super) enum Note {
         flags: u32,
         payload: Vec<u8>,
     },
+    /// The server's lock keys: Scroll Lock in bit 0, Num Lock in 1, Caps
+    /// Lock in 2.
+    Leds(u8),
     /// The server's original cut text, in Latin-1.
     CutText(Vec<u8>),
     /// An extended clipboard message, past its length.
@@ -295,6 +301,16 @@ impl<R: AsyncRead + Unpin> Reader<R> {
             }
             encoding::QEMU_KEYS => {
                 self.note(Note::QemuKeys).await?;
+                return Ok(false);
+            }
+            encoding::QEMU_LEDS => {
+                let state = self.read.read_u8().await?;
+                self.note(Note::Leds(state & 0b111)).await?;
+                return Ok(false);
+            }
+            encoding::VMWARE_LEDS => {
+                let state = self.read.read_u32().await?;
+                self.note(Note::Leds((state & 0b111) as u8)).await?;
                 return Ok(false);
             }
             encoding::EXTENDED_MOUSE_BUTTONS => {
