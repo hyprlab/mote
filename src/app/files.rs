@@ -8,27 +8,26 @@ use relm4::prelude::*;
 
 use super::{AppModel, AppMsg};
 use crate::config;
-use crate::connection::Connection;
+use crate::connection::{Connection, Protocol};
 use crate::i18n::{i18n, i18n_f, ni18n_f};
 use crate::import;
 
-fn rdp_filter() -> gio::ListStore {
+fn connection_filter() -> gio::ListStore {
     let filter = gtk::FileFilter::new();
     filter.set_name(Some(&i18n("Remote Desktop Files")));
     filter.add_suffix("rdp");
     filter.add_mime_type("application/x-rdp");
+    filter.add_suffix("vnc");
+    filter.add_mime_type("application/x-vnc");
     let filters = gio::ListStore::new::<gtk::FileFilter>();
     filters.append(&filter);
     filters
 }
 
-pub(super) fn choose_rdp_files(
-    parent: &adw::ApplicationWindow,
-    sender: &ComponentSender<AppModel>,
-) {
+pub(super) fn choose_files(parent: &adw::ApplicationWindow, sender: &ComponentSender<AppModel>) {
     let dialog = gtk::FileDialog::builder()
-        .title(i18n("Import .rdp Files"))
-        .filters(&rdp_filter())
+        .title(i18n("Import .rdp and .vnc Files"))
+        .filters(&connection_filter())
         .build();
     let input = sender.input_sender().clone();
     dialog.open_multiple(Some(parent), gio::Cancellable::NONE, move |result| {
@@ -36,7 +35,7 @@ pub(super) fn choose_rdp_files(
         let paths: Vec<PathBuf> = (0..files.n_items())
             .filter_map(|i| files.item(i).and_downcast::<gio::File>()?.path())
             .collect();
-        input.emit(AppMsg::ImportRdpFiles(paths));
+        input.emit(AppMsg::ImportFiles(paths));
     });
 }
 
@@ -45,10 +44,15 @@ pub(super) fn choose_export_path(
     parent: &adw::ApplicationWindow,
     sender: &ComponentSender<AppModel>,
 ) {
+    // Each protocol's own kind of file.
+    let suffix = match conn.protocol {
+        Protocol::Rdp => "rdp",
+        Protocol::Vnc => "vnc",
+    };
     let dialog = gtk::FileDialog::builder()
-        .title(i18n("Export as .rdp File"))
-        .initial_name(format!("{}.rdp", conn.title().replace('/', "-")))
-        .filters(&rdp_filter())
+        .title(i18n("Export to File"))
+        .initial_name(format!("{}.{suffix}", conn.title().replace('/', "-")))
+        .filters(&connection_filter())
         .build();
     let (input, id) = (sender.input_sender().clone(), conn.id.clone());
     dialog.save(Some(parent), gio::Cancellable::NONE, move |result| {
@@ -80,17 +84,24 @@ pub(super) fn confirm_delete(
 }
 
 impl AppModel {
-    pub(super) fn import_rdp_files(&mut self, paths: Vec<PathBuf>) {
+    pub(super) fn import_files(&mut self, paths: Vec<PathBuf>) {
         let mut found = Vec::new();
         for path in &paths {
             let name = path
                 .file_stem()
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            match std::fs::read(path)
-                .ok()
-                .and_then(|b| import::rdp::parse(&b, &name))
-            {
+            let vnc = path
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("vnc"));
+            let parsed = std::fs::read(path).ok().and_then(|bytes| {
+                if vnc {
+                    import::vnc::parse(&String::from_utf8_lossy(&bytes), &name)
+                } else {
+                    import::rdp::parse(&bytes, &name)
+                }
+            });
+            match parsed {
                 Some(conn) => found.push(conn),
                 None => self.toast(&i18n_f(
                     "{file} is not a connection file",
@@ -106,7 +117,7 @@ impl AppModel {
     pub(super) fn import_remmina(&mut self) {
         let (found, any_dir) = import::remmina::find();
         if !any_dir || found.is_empty() {
-            self.toast(&i18n("No Remmina RDP connections found"));
+            self.toast(&i18n("No Remmina connections found"));
             return;
         }
         self.finish_import(found);
@@ -141,7 +152,11 @@ impl AppModel {
         let Some(conn) = self.connections.iter().find(|c| c.id == id) else {
             return;
         };
-        if let Err(e) = std::fs::write(path, import::rdp::export(conn)) {
+        let file = match conn.protocol {
+            Protocol::Rdp => import::rdp::export(conn),
+            Protocol::Vnc => import::vnc::export(conn).into_bytes(),
+        };
+        if let Err(e) = std::fs::write(path, file) {
             tracing::warn!("exporting to {}: {e}", path.display());
             self.toast(&i18n_f(
                 "{file} could not be saved",

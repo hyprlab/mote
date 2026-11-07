@@ -1,4 +1,4 @@
-//! The Scan Network dialog: the RDP servers on the local networks, as they
+//! The Scan Network dialog: the RDP and VNC servers on the local networks, as they
 //! answer, each a button away from the editor with its address filled in,
 //! and a page of the networks to scan besides this computer's own.
 
@@ -9,7 +9,7 @@ use adw::prelude::*;
 use relm4::prelude::*;
 use tokio::sync::oneshot;
 
-use crate::connection::DEFAULT_PORT;
+use crate::connection::Protocol;
 use crate::i18n::{i18n, i18n_f};
 use crate::rdp::server::Server;
 use crate::scan::{self, Event, Found, Network, NetworkError};
@@ -533,17 +533,18 @@ fn title(found: &Found) -> String {
     }
 }
 
-/// The address, unless the title is that already, and the server if its
-/// certificate says which.
+/// The address, unless the title is that already; VNC, which is less
+/// usual; and the server, if its certificate says which.
 fn subtitle(found: &Found) -> String {
     let address = found.address;
-    let at = if address.port() == DEFAULT_PORT {
+    let at = if address.port() == found.protocol.port() {
         address.ip().to_string()
     } else {
         address.to_string()
     };
     let parts = [
         (title(found) != at).then_some(at),
+        (found.protocol == Protocol::Vnc).then(|| Protocol::Vnc.name().to_owned()),
         found.server.map(server_name),
     ];
     let parts: Vec<String> = parts.into_iter().flatten().collect();
@@ -570,6 +571,7 @@ mod tests {
             host: host.into(),
             name: name.into(),
             server,
+            protocol: crate::scan::protocol(address.parse::<SocketAddrV4>().unwrap().port()),
             saved: false,
         }
     }
@@ -590,5 +592,10 @@ mod tests {
         let named = found("10.0.1.33:3389", "10.0.1.33", "build01", None);
         assert_eq!(title(&named), "build01");
         assert_eq!(subtitle(&named), "10.0.1.33");
+
+        let vnc = found("10.0.1.17:5900", "mint.lan", "", None);
+        assert_eq!(subtitle(&vnc), "10.0.1.17 · VNC");
+        let display = found("10.0.1.17:5901", "10.0.1.17", "", None);
+        assert_eq!(subtitle(&display), "10.0.1.17:5901 · VNC");
     }
 }

@@ -3,6 +3,7 @@
 //! what comes next is signing in, and GNOME's Remote Login starts a display
 //! at the login screen for a client once that succeeds. Servers expect a
 //! sign-in after the certificate, so each logs a few errors as this leaves.
+//! A VNC server speaks first: its greeting is all that is read.
 
 use std::net::SocketAddrV4;
 use std::time::Duration;
@@ -35,13 +36,23 @@ pub(super) struct Answer {
     pub(super) certificate: Option<Vec<u8>>,
 }
 
-/// The answer of the RDP server at `address`, or `None` when nothing there
-/// speaks RDP.
+/// The answer of the server at `address`, or `None` when nothing there
+/// speaks the protocol its port is for.
 pub(super) async fn probe(address: SocketAddrV4) -> Option<Answer> {
     let mut stream = timeout(CONNECT_FOR, TcpStream::connect(address))
         .await
         .ok()?
         .ok()?;
+    if super::protocol(address.port()) == crate::connection::Protocol::Vnc {
+        let mut greeting = [0; 12];
+        timeout(ANSWER_FOR, stream.read_exact(&mut greeting))
+            .await
+            .ok()?
+            .ok()?;
+        return greeting
+            .starts_with(b"RFB ")
+            .then_some(Answer { certificate: None });
+    }
     let confirm = timeout(ANSWER_FOR, negotiate(&mut stream)).await.ok()??;
     let certificate = match confirm {
         ConnectionConfirm::Response { protocol, .. } if !protocol.is_standard_rdp_security() => {
@@ -125,6 +136,30 @@ mod tests {
 
     fn confirm(confirm: ConnectionConfirm) -> Vec<u8> {
         ironrdp_core::encode_vec(&X224(confirm)).unwrap()
+    }
+
+    /// A server on 127.0.0.1 at `port` that greets with `greeting`, or
+    /// `None` when that port is taken.
+    async fn greeter(port: u16, greeting: &'static [u8]) -> Option<SocketAddrV4> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await.ok()?;
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let _ = stream.write_all(greeting).await;
+        });
+        Some(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port))
+    }
+
+    #[tokio::test]
+    async fn a_vnc_server_is_known_by_its_greeting_alone() {
+        // On a VNC display's port, so the probe takes it for one; the
+        // fourth and third are the least likely to be in use.
+        let Some(vnc) = greeter(5903, b"RFB 003.008\n").await else {
+            return;
+        };
+        assert!(probe(vnc).await.is_some_and(|a| a.certificate.is_none()));
+        if let Some(other) = greeter(5902, b"SSH-2.0-OpenSSH\r\n").await {
+            assert!(probe(other).await.is_none());
+        }
     }
 
     #[tokio::test]

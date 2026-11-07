@@ -16,7 +16,7 @@ msgstr ""
 msgid "Full Release Notes on GitHub"
 msgstr ""
 
-msgid "GNOME-native RDP client"
+msgid "GNOME-native RDP and VNC client"
 msgstr ""
 
 msgid ""
@@ -87,7 +87,7 @@ msgstr ""
 msgid "Scan Network…"
 msgstr ""
 
-msgid "Import .rdp Files…"
+msgid "Import .rdp and .vnc Files…"
 msgstr ""
 
 msgid "Import from Remmina"
@@ -96,7 +96,7 @@ msgstr ""
 msgid "Duplicate"
 msgstr ""
 
-msgid "Export as .rdp File…"
+msgid "Export to File…"
 msgstr ""
 
 msgid "Delete…"
@@ -168,10 +168,10 @@ msgstr ""
 msgid "Remote Desktop Files"
 msgstr ""
 
-msgid "Import .rdp Files"
+msgid "Import .rdp and .vnc Files"
 msgstr ""
 
-msgid "Export as .rdp File"
+msgid "Export to File"
 msgstr ""
 
 msgid "Delete {name}?"
@@ -189,7 +189,7 @@ msgstr ""
 msgid "{file} is not a connection file"
 msgstr ""
 
-msgid "No Remmina RDP connections found"
+msgid "No Remmina connections found"
 msgstr ""
 
 msgid "Those connections are already here"
@@ -1111,16 +1111,16 @@ msgstr ""
 msgid "Remote Desktop Client"
 msgstr ""
 
-msgid "Connect to Linux desktops over RDP"
+msgid "Connect to Linux desktops over RDP and VNC"
 msgstr ""
 
-msgid "RDP;Remote Desktop;xrdp;"
+msgid "RDP;VNC;Remote Desktop;xrdp;TigerVNC;"
 msgstr ""
 
 msgid ""
 "Mote is a remote desktop client for GNOME specifically designed to connect "
-"to Linux desktops over RDP. Supported implementations include GNOME Remote "
-"Desktop (including Remote Login), xrdp and KRdp."
+"to Linux desktops over RDP and VNC. Supported implementations include GNOME "
+"Remote Desktop (including Remote Login), xrdp, KRdp, TigerVNC and wayvnc."
 msgstr ""
 
 msgid ""
@@ -1142,6 +1142,10 @@ msgstr ""
 msgid "Full clipboard sharing between host and remote machines"
 msgstr ""
 
+msgid ""
+"VNC with RSA-AES, VeNCrypt and TLS encryption, resizing and clipboard sharing"
+msgstr ""
+
 msgid "SSH tunnels and RD gateway support"
 msgstr ""
 
@@ -1151,7 +1155,9 @@ msgstr ""
 msgid "Sound, microphone and folder sharing with supported remote sessions"
 msgstr ""
 
-msgid "Import existing RDP files directly into the app or import from Remmina"
+msgid ""
+"Import existing RDP and VNC files directly into the app or import from "
+"Remmina"
 msgstr ""
 
 msgid "A session beside the saved connections"

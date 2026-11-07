@@ -9,7 +9,7 @@ the app.
 | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Connect to the selected connection |
 | <kbd>Ctrl</kbd>+<kbd>E</kbd> | Edit the selected connection |
 | <kbd>Ctrl</kbd>+<kbd>F</kbd> | Search |
-| <kbd>Ctrl</kbd>+<kbd>O</kbd> | Import `.rdp` files |
+| <kbd>Ctrl</kbd>+<kbd>O</kbd> | Import `.rdp` and `.vnc` files |
 
 | General | |
 | --- | --- |

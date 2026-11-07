@@ -205,7 +205,7 @@ pub(super) fn import_menu() -> gio::Menu {
     let menu = gio::Menu::new();
     menu.append(Some(&i18n("Scan Network…")), Some("win.scan-network"));
     menu.append_item(&item(
-        &i18n("Import .rdp Files…"),
+        &i18n("Import .rdp and .vnc Files…"),
         "win.import-rdp",
         Some("<Control>o"),
     ));
@@ -221,7 +221,7 @@ pub(super) fn connection_menu() -> gio::Menu {
     let menu = gio::Menu::new();
     let items = gio::Menu::new();
     items.append(Some(&i18n("Duplicate")), Some("win.duplicate"));
-    items.append(Some(&i18n("Export as .rdp File…")), Some("win.export-rdp"));
+    items.append(Some(&i18n("Export to File…")), Some("win.export-rdp"));
     menu.append_section(None, &items);
     let delete = gio::Menu::new();
     delete.append(Some(&i18n("Delete…")), Some("win.delete"));
@@ -241,7 +241,7 @@ pub(super) fn present_shortcuts(parent: &adw::ApplicationWindow) {
                 (i18n("Connect"), "<Control>Return"),
                 (i18n("Edit Connection"), "<Control>e"),
                 (i18n("Search"), "<Control>f"),
-                (i18n("Import .rdp Files…"), "<Control>o"),
+                (i18n("Import .rdp and .vnc Files…"), "<Control>o"),
                 (i18n("Move Connection Up"), "<Alt>Up"),
                 (i18n("Move Connection Down"), "<Alt>Down"),
                 (i18n("Connection Menu"), "<Shift>F10"),

@@ -1,8 +1,9 @@
-//! Finding RDP servers on the local networks. Nothing here touches a
-//! widget: the interface runs [`run`] as a command and hears back through
-//! [`Event`]s. A server is only ever asked for its certificate, never signed
-//! in to, and the scan runs only when asked for: it sends a connection to
-//! every address in range, which a network's monitoring can notice.
+//! Finding RDP and VNC servers on the local networks. Nothing here touches
+//! a widget: the interface runs [`run`] as a command and hears back through
+//! [`Event`]s. An RDP server is only ever asked for its certificate and a
+//! VNC server only heard to greet, never signed in to, and the scan runs
+//! only when asked for: it sends a connection to every address in range,
+//! which a network's monitoring can notice.
 
 mod network;
 mod probe;
@@ -18,12 +19,28 @@ use tokio::task::JoinSet;
 
 pub(crate) use network::{Network, NetworkError};
 
-use crate::connection::DEFAULT_PORT;
+use crate::connection::{DEFAULT_PORT, Protocol, VNC_PORT};
 use crate::rdp::server::{Server, certificate_name};
 
-/// RDP's own port, and the one GNOME's Desktop Sharing moves to when Remote
-/// Login has that.
-pub(crate) const PORTS: [u16; 2] = [DEFAULT_PORT, 3390];
+/// RDP's own port and the one GNOME's Desktop Sharing moves to when Remote
+/// Login has that; VNC's first four displays.
+pub(crate) const PORTS: [u16; 6] = [
+    DEFAULT_PORT,
+    3390,
+    VNC_PORT,
+    VNC_PORT + 1,
+    VNC_PORT + 2,
+    VNC_PORT + 3,
+];
+
+/// What a server on `port` is taken to speak.
+pub(crate) fn protocol(port: u16) -> Protocol {
+    if (VNC_PORT..VNC_PORT + 100).contains(&port) {
+        Protocol::Vnc
+    } else {
+        Protocol::Rdp
+    }
+}
 
 /// Probes under way at once: most wait out their timeout on an address with
 /// nothing there, so this sets how long a scan takes, about four seconds for
@@ -43,7 +60,7 @@ pub(crate) enum Event {
     Done,
 }
 
-/// An RDP server that answered.
+/// A server that answered.
 #[derive(Debug, Clone)]
 pub(crate) struct Found {
     pub(crate) address: SocketAddrV4,
@@ -53,6 +70,7 @@ pub(crate) struct Found {
     /// What it calls itself where `host` has to be the address; often empty.
     pub(crate) name: String,
     pub(crate) server: Option<Server>,
+    pub(crate) protocol: Protocol,
     /// A connection reaches this already.
     pub(crate) saved: bool,
 }
@@ -156,6 +174,7 @@ async fn identify(
         host,
         name,
         server: der.and_then(Server::from_certificate),
+        protocol: protocol(address.port()),
         saved: saved.contains(&address),
     }
 }
@@ -199,9 +218,9 @@ mod tests {
     #[test]
     fn a_wide_network_s_scan_is_told_in_minutes() {
         let seconds = |text: &str| longest_scan(text.parse().unwrap()).as_secs();
-        assert_eq!(seconds("10.0.1.0/24"), 3);
-        assert_eq!(seconds("10.0.0.0/20"), 63);
-        assert_eq!(seconds("10.0.0.0/16"), 1023);
+        assert_eq!(seconds("10.0.1.0/24"), 11);
+        assert_eq!(seconds("10.0.0.0/20"), 191);
+        assert_eq!(seconds("10.0.0.0/16"), 3071);
     }
 
     #[test]

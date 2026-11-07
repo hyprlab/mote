@@ -1,12 +1,13 @@
 //! Remmina's connection profiles: one `.remmina` key file per connection,
-//! in its data directory (or the Flatpak's). Only RDP profiles come across.
+//! in its data directory (or the Flatpak's). RDP and VNC profiles come
+//! across; VNCI, which waits for a server to connect, doesn't.
 //! Remmina keeps passwords encrypted with its own key or in the keyring
 //! under its own schema, so they are not imported: the first connection
 //! asks.
 
 use std::path::PathBuf;
 
-use crate::connection::{Connection, Network, Quality, split_address};
+use crate::connection::{Connection, Network, Protocol, Quality, VncCodec, split_address};
 
 /// Every directory Remmina may have kept profiles in.
 fn dirs() -> Vec<PathBuf> {
@@ -18,7 +19,7 @@ fn dirs() -> Vec<PathBuf> {
     ]
 }
 
-/// The RDP connections in Remmina's profiles, and whether any profile
+/// The RDP and VNC connections in Remmina's profiles, and whether any profile
 /// directory was found at all.
 pub(crate) fn find() -> (Vec<Connection>, bool) {
     let mut found = Vec::new();
@@ -45,11 +46,13 @@ pub(crate) fn find() -> (Vec<Connection>, bool) {
     (found, any_dir)
 }
 
-/// The connection in one profile, if it is an RDP one.
+/// The connection in one profile, if it is an RDP or a VNC one.
 pub(crate) fn parse(text: &str) -> Option<Connection> {
     let mut in_section = false;
     let mut conn = Connection::default();
-    let mut rdp = false;
+    let mut protocol = None;
+    let mut server = None;
+    let mut quality = None;
     let mut loopback = false;
     for line in text.lines() {
         let line = line.trim();
@@ -65,16 +68,21 @@ pub(crate) fn parse(text: &str) -> Option<Connection> {
         };
         let value = value.trim();
         match key.trim() {
-            "protocol" => rdp = value.eq_ignore_ascii_case("rdp"),
-            "name" => conn.name = value.to_owned(),
-            "group" => conn.group = value.to_owned(),
-            "server" => {
-                let (host, port) = split_address(value)?;
-                conn.host = host;
-                if let Some(port) = port {
-                    conn.port = port;
+            "protocol" => {
+                protocol = match value.to_ascii_uppercase().as_str() {
+                    "RDP" => Some(Protocol::Rdp),
+                    "VNC" => Some(Protocol::Vnc),
+                    _ => None,
                 }
             }
+            "name" => conn.name = value.to_owned(),
+            "group" => conn.group = value.to_owned(),
+            // Read once the protocol is known: VNC's take a display.
+            "server" => server = Some(value.to_owned()),
+            // VNC's: 0 is Poor, 1 Medium, 2 Good, 9 Best.
+            "quality" => quality = Some(value.to_owned()),
+            // VNC's, for a server without encryption.
+            "disableencryption" => conn.allow_unencrypted = value == "1",
             "username" => conn.username = value.to_owned(),
             "domain" => conn.domain = value.to_owned(),
             "network" => conn.network = Network::from_remmina(value),
@@ -105,8 +113,25 @@ pub(crate) fn parse(text: &str) -> Option<Connection> {
             _ => {}
         }
     }
-    if !rdp || conn.host.is_empty() {
-        return None;
+    let protocol = protocol?;
+    let server = server.filter(|s| !s.trim().is_empty())?;
+    match protocol {
+        Protocol::Rdp => {
+            let (host, port) = split_address(&server)?;
+            conn.host = host;
+            if let Some(port) = port {
+                conn.port = port;
+            }
+        }
+        Protocol::Vnc => {
+            (conn.host, conn.port) = super::vnc::address(&server)?;
+            conn.protocol = Protocol::Vnc;
+            conn.vnc_codec = match quality.as_deref() {
+                Some("0") => VncCodec::LowBandwidth,
+                Some("9") => VncCodec::Lossless,
+                _ => VncCodec::Best,
+            };
+        }
     }
     if conn.ssh_tunnel {
         // Remmina takes an empty SSH server to be the computer itself, and
@@ -188,7 +213,15 @@ mod tests {
     }
 
     #[test]
-    fn skips_other_protocols() {
-        assert!(parse("[remmina]\nprotocol=VNC\nserver=box\n").is_none());
+    fn reads_a_vnc_profile_and_skips_other_protocols() {
+        let c = parse("[remmina]\nprotocol=VNC\nserver=box:1\nquality=9\nviewonly=1\n").unwrap();
+        assert_eq!(
+            (c.protocol, c.host.as_str(), c.port),
+            (Protocol::Vnc, "box", 5901)
+        );
+        assert_eq!(c.vnc_codec, VncCodec::Lossless);
+        assert!(c.view_only);
+        assert!(parse("[remmina]\nprotocol=VNCI\nserver=box\n").is_none());
+        assert!(parse("[remmina]\nprotocol=SSH\nserver=box\n").is_none());
     }
 }

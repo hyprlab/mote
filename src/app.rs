@@ -115,7 +115,7 @@ pub(crate) enum AppMsg {
     },
     EditorClosed,
     ImportRdp,
-    ImportRdpFiles(Vec<PathBuf>),
+    ImportFiles(Vec<PathBuf>),
     ImportRemmina,
     ScanNetwork,
     /// A server the scan found, to open the editor on.
@@ -438,7 +438,15 @@ impl Component for AppModel {
             AppMsg::NewConnection(host) => {
                 let mut conn = self.settings.new_connection();
                 if let Some(host) = host {
-                    conn.host = host;
+                    // A VNC address says so; anything else is RDP.
+                    match host.strip_prefix("vnc://") {
+                        Some(host) => {
+                            conn.protocol = crate::connection::Protocol::Vnc;
+                            conn.port = crate::connection::VNC_PORT;
+                            conn.host = host.to_owned();
+                        }
+                        None => conn.host = host,
+                    }
                 }
                 self.open_editor(conn, true, &sender, root);
             }
@@ -521,8 +529,8 @@ impl Component for AppModel {
                 self.editor = None;
                 self.adding = None;
             }
-            AppMsg::ImportRdp => files::choose_rdp_files(root, &sender),
-            AppMsg::ImportRdpFiles(paths) => self.import_rdp_files(paths),
+            AppMsg::ImportRdp => files::choose_files(root, &sender),
+            AppMsg::ImportFiles(paths) => self.import_files(paths),
             AppMsg::ImportRemmina => self.import_remmina(),
             AppMsg::ScanNetwork => self.open_scan(&sender, root),
             AppMsg::AddFound(found) => self.add_found(*found, &sender, root),
@@ -626,9 +634,14 @@ impl AppModel {
             self.select(Some(id));
             self.rebuild_list();
         } else if let Some((host, port)) = split_address(&self.search.text()) {
+            let scheme = if self.search.text().trim().starts_with("vnc://") {
+                "vnc://"
+            } else {
+                ""
+            };
             let typed = match port {
-                Some(port) => format!("{host}:{port}"),
-                None => host,
+                Some(port) => format!("{scheme}{host}:{port}"),
+                None => format!("{scheme}{host}"),
             };
             sender.input(AppMsg::NewConnection(Some(typed)));
         }
@@ -711,6 +724,7 @@ impl AppModel {
             host: found.host,
             port: found.address.port(),
             name: found.name,
+            protocol: found.protocol,
             ..self.settings.new_connection()
         };
         self.open_editor(conn, true, sender, root);

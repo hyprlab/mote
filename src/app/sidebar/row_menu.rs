@@ -176,7 +176,7 @@ fn menu(id: &str, connected: bool, current: &str, groups: &[String]) -> gio::Men
     menu.append_section(None, &grouping);
     let copies = gio::Menu::new();
     copies.append_item(&item(i18n("Duplicate"), "win.duplicate-connection"));
-    copies.append_item(&item(i18n("Export as .rdp File…"), "win.export-connection"));
+    copies.append_item(&item(i18n("Export to File…"), "win.export-connection"));
     menu.append_section(None, &copies);
     let delete = gio::Menu::new();
     delete.append_item(&item(i18n("Delete…"), "win.delete-connection"));

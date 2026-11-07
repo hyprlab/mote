@@ -22,7 +22,8 @@ msgstr "Notes de version"
 msgid "Full Release Notes on GitHub"
 msgstr "Notes de version complètes sur GitHub"
 
-msgid "GNOME-native RDP client"
+#, fuzzy
+msgid "GNOME-native RDP and VNC client"
 msgstr "Client RDP natif pour GNOME"
 
 msgid ""
@@ -93,7 +94,8 @@ msgstr "Trier par"
 msgid "Scan Network…"
 msgstr ""
 
-msgid "Import .rdp Files…"
+#, fuzzy
+msgid "Import .rdp and .vnc Files…"
 msgstr "Importer des fichiers .rdp…"
 
 msgid "Import from Remmina"
@@ -102,7 +104,8 @@ msgstr "Importer depuis Remmina"
 msgid "Duplicate"
 msgstr "Dupliquer"
 
-msgid "Export as .rdp File…"
+#, fuzzy
+msgid "Export to File…"
 msgstr "Exporter en fichier .rdp…"
 
 msgid "Delete…"
@@ -174,10 +177,12 @@ msgstr "Dernière connexion"
 msgid "Remote Desktop Files"
 msgstr "Fichiers de bureau à distance"
 
-msgid "Import .rdp Files"
+#, fuzzy
+msgid "Import .rdp and .vnc Files"
 msgstr "Importer des fichiers .rdp"
 
-msgid "Export as .rdp File"
+#, fuzzy
+msgid "Export to File"
 msgstr "Exporter en fichier .rdp"
 
 msgid "Delete {name}?"
@@ -195,7 +200,8 @@ msgstr "Supprimer"
 msgid "{file} is not a connection file"
 msgstr "{file} n’est pas un fichier de connexion"
 
-msgid "No Remmina RDP connections found"
+#, fuzzy
+msgid "No Remmina connections found"
 msgstr "Aucune connexion RDP Remmina trouvée"
 
 msgid "Those connections are already here"
@@ -1185,16 +1191,19 @@ msgstr "Mote"
 msgid "Remote Desktop Client"
 msgstr "Client de bureau à distance"
 
-msgid "Connect to Linux desktops over RDP"
+#, fuzzy
+msgid "Connect to Linux desktops over RDP and VNC"
 msgstr "Connectez-vous à des bureaux Linux via RDP"
 
-msgid "RDP;Remote Desktop;xrdp;"
+#, fuzzy
+msgid "RDP;VNC;Remote Desktop;xrdp;TigerVNC;"
 msgstr "RDP;Bureau à distance;xrdp;"
 
+#, fuzzy
 msgid ""
 "Mote is a remote desktop client for GNOME specifically designed to connect "
-"to Linux desktops over RDP. Supported implementations include GNOME Remote "
-"Desktop (including Remote Login), xrdp and KRdp."
+"to Linux desktops over RDP and VNC. Supported implementations include GNOME "
+"Remote Desktop (including Remote Login), xrdp, KRdp, TigerVNC and wayvnc."
 msgstr ""
 "Mote est un client de bureau à distance pour GNOME spécialement conçu pour "
 "se connecter à des bureaux Linux via RDP. Les implémentations prises en "
@@ -1225,6 +1234,10 @@ msgid "Full clipboard sharing between host and remote machines"
 msgstr ""
 "Partage complet du presse-papiers entre l’hôte et les machines distantes"
 
+msgid ""
+"VNC with RSA-AES, VeNCrypt and TLS encryption, resizing and clipboard sharing"
+msgstr ""
+
 msgid "SSH tunnels and RD gateway support"
 msgstr "Prise en charge des tunnels SSH et des passerelles RD"
 
@@ -1236,7 +1249,10 @@ msgstr ""
 "Partage du son, du microphone et des dossiers avec les sessions distantes "
 "compatibles"
 
-msgid "Import existing RDP files directly into the app or import from Remmina"
+#, fuzzy
+msgid ""
+"Import existing RDP and VNC files directly into the app or import from "
+"Remmina"
 msgstr ""
 "Importez des fichiers RDP existants directement dans l’application, ou "
 "depuis Remmina"

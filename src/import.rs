@@ -1,7 +1,9 @@
-//! Connections from elsewhere: `.rdp` files, and Remmina's profiles.
+//! Connections from elsewhere: `.rdp` and `.vnc` files, and Remmina's
+//! profiles.
 
 pub(crate) mod rdp;
 pub(crate) mod remmina;
+pub(crate) mod vnc;
 
 use crate::connection::Connection;
 

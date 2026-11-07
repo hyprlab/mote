@@ -496,10 +496,14 @@ pub(crate) fn parse_mac(text: &str) -> Option<[u8; 6]> {
 
 /// Split what someone typed as an address into a host and, if one was
 /// given, a port: `host`, `host:port`, `[v6]:port`, a bare IPv6 address, or
-/// any of those after `rdp://`. `None` when it isn't an address at all.
+/// any of those after `rdp://` or `vnc://`. `None` when it isn't an
+/// address at all.
 pub(crate) fn split_address(text: &str) -> Option<(String, Option<u16>)> {
     let text = text.trim();
-    let text = text.strip_prefix("rdp://").unwrap_or(text);
+    let text = text
+        .strip_prefix("rdp://")
+        .or_else(|| text.strip_prefix("vnc://"))
+        .unwrap_or(text);
     let text = text.trim_end_matches('/');
     if text.is_empty() || text.chars().any(char::is_whitespace) {
         return None;
