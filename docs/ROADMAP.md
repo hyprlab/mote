@@ -1,8 +1,8 @@
 # Roadmap
 
 Mote is built in sections. Each section ends with something that builds,
-runs and has been tried against a real Linux RDP server before the next one
-starts, and each can change shape once the one before it has been used.
+runs and has been tried against a real Linux RDP or VNC server before the
+next one starts, and each can change shape once the one before it has been used.
 
 ## Servers
 
@@ -15,6 +15,17 @@ Every section that touches the protocol is checked against:
 - **xrdp** 0.10 or later, with and without the graphics pipeline (H.264 and
   RemoteFX), and with its PulseAudio and PipeWire sound modules.
 - **KRdp** on KDE Plasma 6.
+
+Every VNC section, from 13 on, is checked against:
+
+- **GNOME Remote Desktop's VNC**, in Desktop Sharing and headless (Remote
+  Login is RDP only): anonymous TLS (security type 18) around VNC
+  Authentication, or a prompt the desktop's user answers.
+- **TigerVNC** 1.15, `Xvnc` and `x0vncserver`: VNC Authentication, VeNCrypt
+  with and without a certificate, and RA2.
+- **wayvnc** 0.9 on Sway, built on neatvnc: VeNCrypt with a certificate,
+  RSA-AES, Open H.264.
+- **KRfb** on KDE Plasma 6, and **x11vnc**, both built on libvncserver.
 
 ## Protocol engine
 
@@ -59,6 +70,28 @@ devices (USB, serial and parallel ports), at the cost of a C API surface, a
 callback-driven event loop and a larger Flatpak. Where IronRDP comes up short
 on something a section needs, that section adds it upstream.
 
+## VNC engine
+
+Mote's own, in Rust, in `src/vnc/`. No Rust VNC client covers what Linux
+servers ask for, as IronRDP does for RDP. vnc-rs, the one maintained crate,
+signs in with VNC Authentication alone, with no encrypted security type,
+and its connector keeps the stream to itself, so TLS can't be added part of
+the way through the handshake without redesigning it. gtk-vnc and
+libvncclient have all of it, in C. RFB is a small protocol, and the rest of
+what a session needs is already here: the session thread, trust on first
+use, the SSH tunnel, reconnection, the frame buffers, the H.264 decoders,
+the clipboard and the keyring. The decoders for Tight, TRLE and ZRLE start
+from vnc-rs's.
+
+The handshake is a state machine the session drives, as IronRDP's connector
+is, so the session decides when the stream becomes TLS. Certificates go
+through rustls and the trust store RDP uses. GNOME Remote Desktop and
+TigerVNC default to anonymous TLS, with Diffie-Hellman and no certificate,
+which rustls doesn't implement; for that alone Mote loads OpenSSL's
+`libssl.so.3` at run time, as it loads FFmpeg, and nothing links it. A
+headless GNOME Remote Desktop signed in over it with
+`ADH-AES256-GCM-SHA384` on Fedora 44.
+
 ## Sections
 
 | # | Section | State |
@@ -75,6 +108,11 @@ on something a section needs, that section adds it upstream.
 | 10 | Session controls | Done |
 | 11 | Settings and polish | Done |
 | 12 | Packaging | Done |
+| 13 | VNC first session | Planned |
+| 14 | VNC security | Planned |
+| 15 | VNC display | Planned |
+| 16 | VNC clipboard | Planned |
+| 17 | VNC connections | Planned |
 
 ### 1. Foundation
 
@@ -572,6 +610,76 @@ whose H.264 it decoded through the system's FFmpeg. The workflow passes
 actionlint. Not tried yet: any of them on a real desktop, H.264 from xrdp
 in the Flatpak, the ARM64 builds, which need the workflow to run on
 GitHub, and a release from a tag.
+
+### 13. VNC first session
+
+- Two protocols: a connection is RDP or VNC, existing profiles reading as
+  RDP, with the port following the choice (3389, 5900). The interface
+  moves to types of its own for frames, the cursor, input and the session's
+  events, the RDP engine turning them into IronRDP's, and the SSH tunnel,
+  Wake-on-LAN, reconnection, the frame buffers and the H.264 decoders are
+  shared. This is tried against the RDP servers before VNC starts.
+- The handshake: RFB 3.3, 3.7 and 3.8; None and VNC Authentication; a
+  32-bit pixel format laid out as the frame buffers are.
+- Raw, CopyRect, Hextile, Zlib, TRLE, ZRLE and Tight with JPEG; LastRect,
+  the server's cursor, DesktopSize, DesktopName and ExtendedDesktopSize.
+- Keys as keysyms, and as QEMU extended key events where the server takes
+  them, so the remote layout decides what a key types. Five buttons, back
+  and forward through ExtendedMouseButtons, and smooth scrolling gathered
+  into wheel steps.
+- Disconnect, reconnect, and errors that name the cause: a refused
+  password, TigerVNC's lock-out after failed attempts, a GNOME prompt
+  declined or left unanswered, something other than a VNC server, and
+  VNC Authentication's limit of 8 characters.
+- Limits on sizes and decompression, and fuzzing for each decoder.
+
+### 14. VNC security
+
+- The strongest security type the server offers: RA2_256 and RA2, VeNCrypt
+  with a certificate, anonymous TLS (type 18 and VeNCrypt's TLS subtypes),
+  then RA2ne and Apple DH, which protect the password alone.
+- A certificate, or RA2's RSA key by its fingerprint, asked about as an RDP
+  server's certificate is. Anonymous TLS is encrypted without the server
+  being verified, and says so.
+- VeNCrypt Plain and RA2 send the user name with the password.
+- A server that offers no encryption stops the connection before the
+  password goes out, with what to change on the server and Allow
+  Unencrypted for the connection.
+
+### 15. VNC display
+
+- Resizing with the window through SetDesktopSize where the server takes
+  it, and Fit to the window where it doesn't; several monitors as
+  ExtendedDesktopSize screens.
+- Continuous updates and Fence where offered; otherwise the next update is
+  asked for as soon as one is read, not once it is painted.
+- The codec choice per protocol: the order of encodings, Tight's JPEG
+  quality and compression, and a lossless choice.
+- Open H.264, which wayvnc sends, through the decoders RDP uses.
+- Numbers from the measurement harness for each encoding.
+
+### 16. VNC clipboard
+
+Text in both directions: the original Latin-1 cut text, and the extended
+clipboard's UTF-8 text, RTF and HTML where the server has it, fetched when
+something pastes. The same switch, off for a new connection, and the same
+notice as RDP's.
+
+### 17. VNC connections
+
+- The editor shows what applies to the protocol, with Allow Unencrypted
+  for VNC; the connection's row shows its protocol; the search field takes
+  `vnc://host[:port]`.
+- Import of Remmina's VNC profiles and of TigerVNC's and RealVNC's `.vnc`
+  files, and export to `.vnc`.
+- Scan Network on ports 5900 to 5903, reading the server's greeting and
+  nothing more, so GNOME's prompt never appears.
+- Caps Lock and Num Lock kept in step through the QEMU and VMware LED
+  pseudo-encodings.
+- Decided in this section: sound through QEMU's pseudo-encoding, and
+  listening for a server that connects out, as `x11vnc -connect` does.
+  UltraVNC's and TightVNC's chat, file transfer and repeater are not
+  planned: no Linux server here uses them.
 
 ## Remmina parity
 
