@@ -87,7 +87,7 @@ async fn negotiate(
 /// The TLS handshake, for the certificate. It is only read, so this needs
 /// no opinion of it: the first session is what asks whether to trust it.
 async fn certificate(stream: TcpStream, host: &str) -> Option<Vec<u8>> {
-    crate::rdp::use_ring();
+    crate::remote::use_ring();
     let (_tls, certificate) = ironrdp_tls::upgrade_with_certificate_validation(
         stream,
         host,

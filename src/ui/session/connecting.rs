@@ -11,7 +11,7 @@ use tokio::sync::oneshot;
 use super::{Page, Session, SessionCmd, SessionInput, clipboard, keyboard, pages, window_of};
 use crate::config;
 use crate::i18n::i18n_f;
-use crate::rdp::{self, Identity, Trust};
+use crate::remote::{self, Identity, Trust};
 
 impl Session {
     /// Not waiting for the window to go fullscreen: it isn't to, or the page
@@ -34,7 +34,7 @@ impl Session {
     pub(super) fn connect(&mut self, sender: &ComponentSender<Self>) {
         self.clipboard = None;
         if let Some(handle) = self.handle.take() {
-            handle.send(rdp::Command::Close);
+            handle.send(remote::Command::Close);
             self.finished();
         }
         self.page = Page::Connecting;
@@ -65,7 +65,7 @@ impl Session {
             return;
         };
         self.display.set_asked(width, height);
-        let target = rdp::Target {
+        let target = remote::Target {
             host: self.connection.host.clone(),
             port: self.connection.port,
             addresses: self.connection.addresses(),
@@ -87,11 +87,11 @@ impl Session {
             reconnect: self.reconnect,
             keyboard_layout: keyboard::layout_id(self.keyboard_layout, &self.display),
         };
-        let (handle, mut events) = rdp::start(target);
+        let (handle, mut events) = remote::start(target);
         self.begun = true;
         let input = handle.clone();
         self.display
-            .set_input(move |events| input.send(rdp::Command::Input(events)));
+            .set_input(move |events| input.send(remote::Command::Input(events)));
         if self.connection.clipboard {
             self.clipboard = Some(clipboard::Sharing::new(
                 &self.display,
@@ -153,7 +153,7 @@ impl Session {
 
     /// The way to the computer: through the SSH server or the gateway, if
     /// the connection has one.
-    fn via(&self) -> rdp::Via {
+    fn via(&self) -> remote::Via {
         let c = &self.connection;
         if let Some((host, port)) = c.ssh_server() {
             let username = if c.ssh_username.is_empty() {
@@ -161,7 +161,7 @@ impl Session {
             } else {
                 c.ssh_username.clone()
             };
-            return rdp::Via::Ssh(rdp::Hop {
+            return remote::Via::Ssh(remote::Hop {
                 host,
                 port,
                 username,
@@ -184,13 +184,13 @@ impl Session {
                     self.gateway_password.to_string(),
                 )
             };
-            return rdp::Via::Gateway(rdp::Hop {
+            return remote::Via::Gateway(remote::Hop {
                 host,
                 port,
                 username,
                 password,
             });
         }
-        rdp::Via::Direct
+        remote::Via::Direct
     }
 }

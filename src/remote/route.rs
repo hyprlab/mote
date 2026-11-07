@@ -1,18 +1,22 @@
 //! The way to the server: straight there over TCP, through an SSH tunnel,
-//! or through an RD Gateway, after waking the computer when asked to.
+//! or through an RD Gateway (RDP's own, in `rdp::gateway`), after waking
+//! the computer when asked to.
 
-mod gateway;
 mod ssh;
 mod wake;
 
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 
-use super::connect::Stream;
 use super::{Event, Failure, Target, Unreachable, Via};
+
+/// A connection to the server, whichever way it goes.
+pub(crate) trait Stream: AsyncRead + AsyncWrite + Unpin + Send + Sync {}
+impl<T: AsyncRead + AsyncWrite + Unpin + Send + Sync> Stream for T {}
 
 const TCP_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -32,7 +36,7 @@ const WAKE_TRY: Duration = Duration::from_secs(3);
 const ANOTHER_ADDRESS_AFTER: Duration = Duration::from_secs(5);
 
 /// How long to wait for an address to answer.
-pub(super) fn patience(waking: bool, last: bool) -> Duration {
+pub(crate) fn patience(waking: bool, last: bool) -> Duration {
     if waking {
         WAKE_TRY
     } else if last {
@@ -44,7 +48,7 @@ pub(super) fn patience(waking: bool, last: bool) -> Duration {
 
 /// A computer being woken over the network: the packets sent to it, and how
 /// long it has left to answer.
-pub(super) struct Waking {
+pub(crate) struct Waking {
     mac: [u8; 6],
     until: Instant,
     sent: Option<Instant>,
@@ -52,7 +56,7 @@ pub(super) struct Waking {
 }
 
 impl Waking {
-    pub(super) fn new(mac: [u8; 6]) -> Self {
+    pub(crate) fn new(mac: [u8; 6]) -> Self {
         Self {
             mac,
             until: Instant::now() + WAKE_FOR,
@@ -62,7 +66,7 @@ impl Waking {
     }
 
     /// Send the packet, if it is time to.
-    pub(super) async fn send(&mut self) {
+    pub(crate) async fn send(&mut self) {
         if self.sent.is_none_or(|at| at.elapsed() >= WAKE_AGAIN) {
             wake::send(self.mac).await;
             self.sent = Some(Instant::now());
@@ -70,7 +74,7 @@ impl Waking {
     }
 
     /// Wait before trying again; `false` when the computer's time is up.
-    pub(super) async fn wait(&mut self, host: &str, events: &mpsc::Sender<Event>) -> bool {
+    pub(crate) async fn wait(&mut self, host: &str, events: &mpsc::Sender<Event>) -> bool {
         if Instant::now() >= self.until {
             return false;
         }
@@ -85,7 +89,7 @@ impl Waking {
 }
 
 /// A connection to the server, and the address this side of it has.
-pub(super) async fn open(
+pub(crate) async fn open(
     target: &Target,
     events: &mpsc::Sender<Event>,
     patience: Duration,
@@ -101,7 +105,7 @@ pub(super) async fn open(
             Ok((Box::new(stream), local))
         }
         Via::Ssh(hop) => ssh::open(hop, target, events).await,
-        Via::Gateway(hop) => gateway::open(hop, target, events).await,
+        Via::Gateway(hop) => crate::rdp::gateway::open(hop, target, events).await,
     }
 }
 

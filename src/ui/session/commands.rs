@@ -8,7 +8,7 @@ use relm4::prelude::*;
 use super::{Page, Session, SessionInput};
 use crate::connection::Connection;
 use crate::i18n::i18n;
-use crate::rdp;
+use crate::remote;
 
 fn spawn(
     command: &str,
@@ -70,7 +70,7 @@ impl Session {
         }
         self.clipboard = None;
         if let Some(handle) = self.handle.take() {
-            handle.send(rdp::Command::Close);
+            handle.send(remote::Command::Close);
         }
         self.finished();
         self.page = Page::Connecting;

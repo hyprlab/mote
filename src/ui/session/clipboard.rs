@@ -14,8 +14,9 @@ use tokio::sync::oneshot;
 
 use super::{Session, SessionOutput};
 use crate::i18n::i18n;
-use crate::rdp::clipboard::{Content, Image, Kind};
-use crate::rdp::{self, ClipboardCommand, ClipboardEvent};
+use crate::rdp;
+use crate::remote::clipboard::{Content, Image, Kind};
+use crate::remote::{self, ClipboardCommand, ClipboardEvent};
 
 /// The most read from the local clipboard for one paste.
 const MAX_READ: usize = 256 << 20;
@@ -33,7 +34,7 @@ pub(crate) fn fetched_files() -> PathBuf {
 pub(super) struct Sharing {
     clipboard: gdk::Clipboard,
     changed: Option<glib::SignalHandlerId>,
-    handle: rdp::Handle,
+    handle: remote::Handle,
     /// Marks what this session put on the clipboard.
     tag: u64,
 }
@@ -47,7 +48,7 @@ impl Sharing {
     /// of them, nor of their paths.
     pub(super) fn new(
         widget: &impl IsA<gtk::Widget>,
-        handle: rdp::Handle,
+        handle: remote::Handle,
         share_files: bool,
     ) -> Self {
         let clipboard = widget.clipboard();
@@ -126,7 +127,7 @@ fn ours(clipboard: &gdk::Clipboard, tag: u64) -> bool {
 /// session put there is passed on like anything else. Files go only when
 /// `share_files` is set; otherwise a copy of files is offered as nothing,
 /// since its text is their paths.
-fn announce(clipboard: &gdk::Clipboard, handle: &rdp::Handle, tag: u64, share_files: bool) {
+fn announce(clipboard: &gdk::Clipboard, handle: &remote::Handle, tag: u64, share_files: bool) {
     if ours(clipboard, tag) {
         return;
     }
@@ -150,7 +151,7 @@ fn announce(clipboard: &gdk::Clipboard, handle: &rdp::Handle, tag: u64, share_fi
         kinds.clear();
     }
     if !share_files || !holds_files {
-        handle.send(rdp::Command::Clipboard(ClipboardCommand::Copied {
+        handle.send(remote::Command::Clipboard(ClipboardCommand::Copied {
             kinds,
             files: Vec::new(),
         }));
@@ -175,7 +176,7 @@ fn announce(clipboard: &gdk::Clipboard, handle: &rdp::Handle, tag: u64, share_fi
         if !files.is_empty() {
             kinds.insert(0, Kind::Files);
         }
-        handle.send(rdp::Command::Clipboard(ClipboardCommand::Copied {
+        handle.send(remote::Command::Clipboard(ClipboardCommand::Copied {
             kinds,
             files,
         }));
@@ -296,7 +297,7 @@ mod imp {
     #[derive(Default)]
     pub(crate) struct RemoteContent {
         pub(super) kinds: RefCell<Vec<Kind>>,
-        pub(super) handle: RefCell<Option<rdp::Handle>>,
+        pub(super) handle: RefCell<Option<remote::Handle>>,
         pub(super) tag: Cell<u64>,
         pub(super) files: RefCell<Fetched>,
     }
@@ -353,7 +354,7 @@ glib::wrapper! {
 }
 
 impl RemoteContent {
-    fn new(kinds: Vec<Kind>, handle: rdp::Handle, tag: u64) -> Self {
+    fn new(kinds: Vec<Kind>, handle: remote::Handle, tag: u64) -> Self {
         let content: Self = glib::Object::new();
         let imp = content.imp();
         imp.kinds.replace(kinds);
@@ -364,7 +365,7 @@ impl RemoteContent {
 
     fn send(&self, command: ClipboardCommand) {
         if let Some(handle) = self.imp().handle.borrow().as_ref() {
-            handle.send(rdp::Command::Clipboard(command));
+            handle.send(remote::Command::Clipboard(command));
         }
     }
 

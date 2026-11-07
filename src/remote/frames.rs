@@ -36,7 +36,7 @@ impl Drop for Pixels {
     }
 }
 
-pub(super) struct Frames {
+pub(crate) struct Frames {
     /// Buffers back from the interface, each with the frame it holds.
     pool: Vec<(u64, Vec<u8>)>,
     home: mpsc::Sender<(u64, Vec<u8>)>,
@@ -48,7 +48,7 @@ pub(super) struct Frames {
 }
 
 impl Frames {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let (home, returned) = mpsc::channel();
         Self {
             pool: Vec::new(),
@@ -61,7 +61,7 @@ impl Frames {
 
     /// The image as it is now, with `damage` the change since the last
     /// frame. A new desktop size makes a new `Frames`.
-    pub(super) fn make(&mut self, image: &[u8], stride: usize, damage: &[Rect]) -> Pixels {
+    pub(crate) fn make(&mut self, image: &[u8], stride: usize, damage: &[Rect]) -> Pixels {
         self.pool.extend(self.returned.try_iter());
         self.made += 1;
         self.history.push_back((self.made, damage.to_vec()));

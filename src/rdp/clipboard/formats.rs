@@ -6,14 +6,7 @@
 //! GNOME Remote Desktop and KRdp turn into LF; xrdp passes CRLF on to the
 //! applications on its desktop, and all three take LF as it is.
 
-/// A picture: straight (not premultiplied) RGBA, rows top first, no
-/// padding.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Image {
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) rgba: Vec<u8>,
-}
+pub(crate) use crate::remote::clipboard::Image;
 
 /// The largest picture taken from the other side, 16384 pixels square:
 /// anything larger is more likely damage than a picture.

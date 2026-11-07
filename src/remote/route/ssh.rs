@@ -14,8 +14,8 @@ use russh::keys::{HashAlg, PrivateKeyWithHashAlg, PublicKey, PublicKeyOrCertific
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::{mpsc, oneshot};
 
-use super::super::connect::Stream;
 use super::super::{Event, Failure, Hop, Identity, Target, Trust, Tunnel, Unreachable};
+use super::Stream;
 
 pub(super) async fn open(
     hop: &Hop,

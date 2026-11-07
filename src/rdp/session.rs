@@ -34,7 +34,7 @@ struct Desktop {
     in_flight: bool,
     /// A frame has gone out.
     shown: bool,
-    frames: super::frames::Frames,
+    frames: crate::remote::frames::Frames,
 }
 
 impl Desktop {
@@ -46,7 +46,7 @@ impl Desktop {
             since: None,
             in_flight: false,
             shown: false,
-            frames: super::frames::Frames::new(),
+            frames: crate::remote::frames::Frames::new(),
         }
     }
 }

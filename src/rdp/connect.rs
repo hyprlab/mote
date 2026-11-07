@@ -15,15 +15,13 @@ use ironrdp_pdu::rdp::capability_sets::{
 use ironrdp_pdu::rdp::client_info::{PerformanceFlags, TimezoneInfo};
 use ironrdp_pdu::rdp::server_redirection::{ServerRedirectionFlags, ServerRedirectionPdu};
 use ironrdp_tokio::{NetworkClient, TokioFramed};
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
 use x509_cert::der::Encode as _;
 
 use super::{Event, Failure, Identity, MAX_HOPS, Target, Trust, Via, describe, rdstls};
 use crate::connection::{Network, Quality, address_text};
 
-pub(super) trait Stream: AsyncRead + AsyncWrite + Unpin + Send + Sync {}
-impl<T: AsyncRead + AsyncWrite + Unpin + Send + Sync> Stream for T {}
+pub(super) use crate::remote::route::Stream;
 
 /// The connection once TLS is up, ready for the session.
 pub(super) type Framed = TokioFramed<Box<dyn Stream>>;
@@ -67,7 +65,7 @@ async fn reach(
         Some(_) => vec![(target.host.clone(), target.port)],
         None => target.addresses.clone(),
     };
-    let mut waking = target.wake.map(super::route::Waking::new);
+    let mut waking = target.wake.map(crate::remote::route::Waking::new);
     loop {
         if let Some(waking) = &mut waking {
             waking.send().await;
@@ -80,7 +78,8 @@ async fn reach(
                 tracing::info!("trying {address}");
                 let _ = events.send(Event::Trying(address.clone())).await;
             }
-            let patience = super::route::patience(waking.is_some(), at + 1 == addresses.len());
+            let patience =
+                crate::remote::route::patience(waking.is_some(), at + 1 == addresses.len());
             let mut result = attempt(target, redirect, patience, events, clipboard, audio).await;
             // A server can give up on a connection while its certificate
             // waits on the user; once trusted, a second try goes straight
@@ -171,7 +170,7 @@ async fn attempt(
     clipboard: &mut super::clipboard::Clipboard,
     audio: &super::audio::Audio,
 ) -> Result<(ConnectionOutcome, Framed), Attempt> {
-    let (stream, client_addr) = super::route::open(target, events, patience).await?;
+    let (stream, client_addr) = crate::remote::route::open(target, events, patience).await?;
     let mut framed = TokioFramed::new(stream);
 
     let mut connector = ClientConnector::new(config(target, audio), client_addr)

@@ -11,8 +11,8 @@ use gtk::glib;
 
 use crate::connection::Connection;
 use crate::i18n::{i18n, i18n_f};
-use crate::rdp::Event;
 use crate::rdp::server::{Distro, Graphics, Server, System};
+use crate::remote::Event;
 use advice::{Restart, Step};
 
 /// What a session learns of the computer, which the advice starts from.

@@ -7,7 +7,7 @@ use relm4::prelude::*;
 use super::{Session, SessionInput};
 use crate::connection::{Connection, Scaling};
 use crate::i18n::{i18n, i18n_f};
-use crate::rdp::Identity;
+use crate::remote::Identity;
 
 /// What the sign-in page holds.
 pub(super) struct Account {

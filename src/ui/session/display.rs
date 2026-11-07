@@ -11,7 +11,8 @@ use gtk::subclass::widget::{WidgetClassExt, WidgetImpl, WidgetImplExt};
 use gtk::{gdk, glib, graphene, gsk};
 
 use crate::connection::Scaling;
-use crate::rdp::{self, keymap};
+use crate::rdp::keymap;
+use crate::remote;
 use crate::remote::Pointer;
 use crate::remote::input::{Button, Held, Input, Key};
 
@@ -420,7 +421,7 @@ impl Display {
 
     /// Show a frame. Only its damaged parts are uploaded again: the old
     /// texture is handed to GDK as the one the new one updates.
-    pub(crate) fn show_frame(&self, frame: rdp::Frame) {
+    pub(crate) fn show_frame(&self, frame: remote::Frame) {
         let start = std::time::Instant::now();
         // A frame replaced before it was painted: the older change counts.
         let unpainted = self.imp().unpainted.get().unwrap_or(frame.made);
@@ -474,17 +475,17 @@ impl Display {
         self.queue_draw();
     }
 
-    pub(crate) fn set_remote_cursor(&self, cursor: rdp::Cursor) {
+    pub(crate) fn set_remote_cursor(&self, cursor: remote::Cursor) {
         let cursor = match cursor {
-            rdp::Cursor::Default => {
+            remote::Cursor::Default => {
                 self.imp().pointer.replace(None);
                 None
             }
-            rdp::Cursor::Hidden => {
+            remote::Cursor::Hidden => {
                 self.imp().pointer.replace(None);
                 gdk::Cursor::from_name("none", None)
             }
-            rdp::Cursor::Bitmap(pointer) => {
+            remote::Cursor::Bitmap(pointer) => {
                 self.imp().pointer.replace(Some(pointer));
                 return self.refresh_cursor();
             }

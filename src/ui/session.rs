@@ -28,7 +28,7 @@ use relm4::prelude::*;
 use crate::config;
 use crate::connection::{Connection, Scaling};
 use crate::i18n::{i18n, i18n_f};
-use crate::rdp::{self, Ending, Event};
+use crate::remote::{self, Ending, Event};
 use crate::secrets::{self, Password, Secret};
 use display::Display;
 
@@ -64,7 +64,7 @@ pub(crate) struct Session {
     gateway_password: Password,
     /// Save the typed account once a session starts.
     remember: bool,
-    handle: Option<rdp::Handle>,
+    handle: Option<remote::Handle>,
     clipboard: Option<clipboard::Sharing>,
     /// The address in the header: the one the session went to, when the
     /// connection has several.
@@ -204,9 +204,9 @@ pub(crate) enum SessionOutput {
     /// What the computer runs was chosen, to be kept.
     System {
         id: String,
-        server: Option<rdp::server::Server>,
-        distro: Option<rdp::server::Distro>,
-        graphics: Option<rdp::server::Graphics>,
+        server: Option<crate::rdp::server::Server>,
+        distro: Option<crate::rdp::server::Distro>,
+        graphics: Option<crate::rdp::server::Graphics>,
     },
     Detach(String),
     Attach(String),
@@ -495,7 +495,7 @@ impl Component for Session {
                 }
                 self.clipboard = None;
                 if let Some(handle) = self.handle.take() {
-                    handle.send(rdp::Command::Close);
+                    handle.send(remote::Command::Close);
                 }
                 self.leave_fullscreen(root);
                 let _ = sender.output(SessionOutput::Closed(self.connection.id.clone()));
@@ -636,7 +636,7 @@ impl Component for Session {
                         (&self.handle, self.desktop_size())
                 {
                     self.display.set_asked(width, height);
-                    handle.send(rdp::Command::Resize {
+                    handle.send(remote::Command::Resize {
                         width: width.into(),
                         height: height.into(),
                         scale,
@@ -830,7 +830,7 @@ impl Session {
                     // was away, and a layout of several monitors is gone.
                     sender.input(SessionInput::Resized);
                     if let (Some(spread), Some(handle)) = (&self.spread, &self.handle) {
-                        handle.send(rdp::Command::Layout(spread.layout.clone()));
+                        handle.send(remote::Command::Layout(spread.layout.clone()));
                     }
                 }
                 self.page = Page::Desktop;
@@ -855,7 +855,7 @@ impl Session {
                 // The next frame can come now, and replace this one if it
                 // isn't painted yet: what is painted is the newest there is.
                 if let Some(handle) = &self.handle {
-                    handle.send(rdp::Command::FrameDone);
+                    handle.send(remote::Command::FrameDone);
                 }
             }
             Event::Cursor(cursor) => {

@@ -3,7 +3,7 @@
 
 use crate::connection::Connection;
 use crate::i18n::{i18n, i18n_f};
-use crate::rdp::{Disconnect, Ending, Failure, Security, Tunnel, Unreachable};
+use crate::remote::{Disconnect, Ending, Failure, Security, Tunnel, Unreachable};
 
 pub(super) enum Shown {
     /// Nothing: the window is closing.

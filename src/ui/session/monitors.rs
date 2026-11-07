@@ -9,7 +9,7 @@ use relm4::prelude::*;
 
 use super::display::Display;
 use super::{Page, Session, SessionInput, window_of};
-use crate::rdp;
+use crate::remote;
 
 /// A monitor here, in GDK's logical pixels, and its scale.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -38,7 +38,7 @@ impl Here {
 /// picture starts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Placed {
-    pub(super) monitor: rdp::Monitor,
+    pub(super) monitor: remote::Monitor,
     pub(super) start: (i32, i32),
 }
 
@@ -85,7 +85,7 @@ pub(super) fn arrange(monitors: &[Here], primary: usize) -> Vec<Placed> {
         .map(|(m, (x, y))| {
             let (width, height) = size(m);
             Placed {
-                monitor: rdp::Monitor {
+                monitor: remote::Monitor {
                     x,
                     y,
                     width,
@@ -99,7 +99,7 @@ pub(super) fn arrange(monitors: &[Here], primary: usize) -> Vec<Placed> {
 }
 
 /// The layout to send: the primary monitor first.
-pub(super) fn layout(placed: &[Placed], primary: usize) -> Vec<rdp::Monitor> {
+pub(super) fn layout(placed: &[Placed], primary: usize) -> Vec<remote::Monitor> {
     let mut monitors = vec![placed[primary].monitor];
     monitors.extend(
         placed
@@ -114,7 +114,7 @@ pub(super) fn layout(placed: &[Placed], primary: usize) -> Vec<rdp::Monitor> {
 /// The windows on the other monitors.
 pub(super) struct Spread {
     /// What was sent, to send again after reconnecting.
-    pub(super) layout: Vec<rdp::Monitor>,
+    pub(super) layout: Vec<remote::Monitor>,
     windows: Vec<(gtk::Window, Display)>,
 }
 
@@ -122,7 +122,7 @@ impl Spread {
     /// Open a fullscreen window on each of `others`, showing its part of
     /// the desktop, with input going where `input` sends it.
     pub(super) fn open(
-        layout: Vec<rdp::Monitor>,
+        layout: Vec<remote::Monitor>,
         others: &[(gdk::Monitor, (i32, i32))],
         title: &str,
         main: &Display,
@@ -210,12 +210,12 @@ impl Session {
             &others,
             self.connection.title(),
             &self.display,
-            move |events| input.send(rdp::Command::Input(events)),
+            move |events| input.send(remote::Command::Input(events)),
             move || back.emit(SessionInput::OneMonitor),
         ));
         self.display.set_viewport(Some(placed[primary].start));
         window.fullscreen_on_monitor(&all[primary]);
-        handle.send(rdp::Command::Layout(layout));
+        handle.send(remote::Command::Layout(layout));
     }
 
     /// Back to one monitor: the other windows close, and the remote desktop
@@ -251,7 +251,7 @@ mod tests {
         let placed = arrange(&monitors, 0);
         assert_eq!(
             placed[0].monitor,
-            rdp::Monitor {
+            remote::Monitor {
                 x: 0,
                 y: 0,
                 width: 2880,
