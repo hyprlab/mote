@@ -20,6 +20,7 @@ use x509_cert::der::Encode as _;
 
 use super::{Event, Failure, Identity, MAX_HOPS, Target, Trust, Via, describe, rdstls};
 use crate::connection::{Network, Quality, address_text};
+use crate::remote::fingerprint;
 
 pub(super) use crate::remote::route::Stream;
 
@@ -329,19 +330,6 @@ async fn ask_trust(
         Trust::Accepted => Ok(true),
         Trust::Rejected => Err(Failure::Untrusted.into()),
     }
-}
-
-/// SHA-256 of the certificate, as `ab:cd:…`, the form GNOME's Remote
-/// Desktop settings show it in.
-pub(crate) fn fingerprint(der: &[u8]) -> String {
-    let hex = gtk::glib::compute_checksum_for_data(gtk::glib::ChecksumType::Sha256, der)
-        .map(|s| s.to_string())
-        .unwrap_or_default();
-    hex.as_bytes()
-        .chunks(2)
-        .map(|pair| std::str::from_utf8(pair).unwrap_or_default())
-        .collect::<Vec<_>>()
-        .join(":")
 }
 
 /// NLA, run here rather than inside `connect_finalize` so that a failure

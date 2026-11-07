@@ -91,6 +91,14 @@ des = "0.9"
 flate2 = "1"
 zune-jpeg = "0.5"
 zune-core = "0.5"
+# VNC's own encryption: RSA-AES (RSA, AES in EAX mode, SHA-1 and SHA-256),
+# and Apple's Diffie-Hellman (MD5 and AES). RustCrypto, pure Rust.
+rsa = "0.9"
+aes = "0.8"
+eax = "0.5"
+sha1 = "0.10"
+sha2 = "0.10"
+md-5 = "0.10"
 
 [build-dependencies]
 glib-build-tools = "0.22"

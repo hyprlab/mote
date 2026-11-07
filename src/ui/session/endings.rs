@@ -15,6 +15,8 @@ pub(super) enum Shown {
         description: String,
         /// Offer the advice on H.264.
         help: bool,
+        /// Offer to go without encryption.
+        allow: bool,
     },
 }
 
@@ -31,6 +33,7 @@ pub(super) fn shown(
         title,
         description,
         help: false,
+        allow: false,
     };
     let could_not = || i18n("Could Not Connect");
     let named = |text: &str| i18n_f(text, &[("host", &host)]);
@@ -67,6 +70,14 @@ pub(super) fn shown(
                     .collect::<Vec<_>>()
                     .join("\n"),
             ),
+            Failure::Security(Security::Unencrypted) => Shown::Page {
+                title: could_not(),
+                description: named(
+                    "{host} offers no encryption, so the password and the session would cross the network as they are. Turn encryption on there: TigerVNC takes RA2 or TLSVnc in its SecurityTypes, wayvnc an RSA key or a certificate.",
+                ),
+                help: false,
+                allow: true,
+            },
             Failure::Security(security) => page(
                 could_not(),
                 match security {
@@ -79,6 +90,11 @@ pub(super) fn shown(
                     Security::OldTls => named(
                         "{host} only offers an outdated version of TLS. Update its remote desktop server, or allow TLS 1.2 or later.",
                     ),
+                    Security::NoOpenSsl => named(
+                        "{host} encrypts with anonymous TLS, which needs OpenSSL 3. Install the openssl-libs or libssl3 package.",
+                    ),
+                    // Shown with its button above; this is never reached.
+                    Security::Unencrypted => named("{host} offers no encryption."),
                     Security::Unsupported(kinds) => i18n_f(
                         "{host} asks for security this version can’t use yet: {kinds}.",
                         &[("host", &host), ("kinds", &kinds)],
@@ -121,6 +137,7 @@ pub(super) fn shown(
                 "{host} can only send its picture as H.264 video, and has no H.264 encoder installed.",
             ),
             help: true,
+            allow: false,
         },
         Ending::ServerClosed(Some(Disconnect::Graphics)) => page(
             could_not(),

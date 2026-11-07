@@ -100,6 +100,9 @@ pub(crate) struct Session {
     ended: adw::StatusPage,
     /// The ended page's How to Fix, for a server without H.264.
     help: gtk::Button,
+    /// The ended page's Allow Unencrypted, for a VNC server without
+    /// encryption.
+    allow: gtk::Button,
     /// What the session learns of the computer, for that advice.
     findings: h264_help::Findings,
     h264_warning: bool,
@@ -173,6 +176,8 @@ pub(crate) enum SessionInput {
     SendSize(u32),
     /// Show what to install for the server to send H.264.
     H264Help,
+    /// Connect to this VNC server without encryption, from now on.
+    AllowUnencrypted,
     /// What the computer runs, as chosen there.
     Chosen(h264_help::Choice),
     /// The server still keeps its size, a while after it first did.
@@ -202,6 +207,11 @@ pub(crate) enum SessionOutput {
     ViewOnly(String, bool),
     /// The connection's clipboard notice was shown, not to show again.
     ClipboardTold(String),
+    /// The connection may go without encryption, to be kept.
+    AllowUnencrypted(String),
+    /// The connection's notice on its protection was shown, not to show
+    /// again.
+    ProtectionTold(String),
     /// What the computer runs was chosen, to be kept.
     System {
         id: String,
@@ -338,7 +348,7 @@ impl Component for Session {
     ) -> ComponentParts<Self> {
         let connection = init.connection;
         let sign_in = pages::SignIn::new(&connection, &sender);
-        let (ended, help) = pages::ended(&sender);
+        let (ended, help, allow) = pages::ended(&sender);
         let model = Session {
             reconnect: init.reconnect,
             keyboard_layout: init.keyboard_layout,
@@ -367,6 +377,7 @@ impl Component for Session {
             sign_in,
             ended,
             help,
+            allow,
             findings: h264_help::Findings::default(),
             h264_warning: init.h264_warning,
             size_checking: false,
@@ -474,6 +485,11 @@ impl Component for Session {
                 self.begin(&sender);
             }
             SessionInput::Reconnect => self.begin(&sender),
+            SessionInput::AllowUnencrypted => {
+                self.connection.allow_unencrypted = true;
+                let _ = sender.output(SessionOutput::AllowUnencrypted(self.connection.id.clone()));
+                self.begin(&sender);
+            }
             SessionInput::Connect => self.connect(&sender),
             SessionInput::Prepared(attempt, result) if attempt == self.attempt => match result {
                 Ok(()) => self.connect(&sender),

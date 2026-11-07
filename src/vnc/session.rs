@@ -239,8 +239,10 @@ async fn send(write: &mut WriteHalf<Box<dyn Stream>>, bytes: &[u8]) -> Result<()
     if bytes.is_empty() {
         return Ok(());
     }
-    write
-        .write_all(bytes)
-        .await
-        .map_err(|e| Failure::Lost(describe(&e)))
+    // Flushed too: an encrypted stream may hold bytes back until then.
+    let sent = async {
+        write.write_all(bytes).await?;
+        write.flush().await
+    };
+    sent.await.map_err(|e| Failure::Lost(describe(&e)))
 }

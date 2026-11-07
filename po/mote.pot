@@ -335,6 +335,12 @@ msgstr ""
 msgid "Only supported by xrdp"
 msgstr ""
 
+msgid "Allow Unencrypted"
+msgstr ""
+
+msgid "The password and the session cross the network as they are"
+msgstr ""
+
 msgid "View Only"
 msgstr ""
 
@@ -651,6 +657,30 @@ msgstr ""
 msgid "The computer ended the session."
 msgstr ""
 
+msgid "Waking {name}…"
+msgstr ""
+
+msgid "Reconnecting to {name}…"
+msgstr ""
+
+msgid "The remote computer is not sending H.264 video"
+msgstr ""
+
+msgid "How to Fix"
+msgstr ""
+
+msgid "The remote desktop can only use one monitor"
+msgstr ""
+
+msgid "Encrypted, but nothing shows which computer this is"
+msgstr ""
+
+msgid "Only the password was encrypted, not the session"
+msgstr ""
+
+msgid "Not encrypted: the network can see this session"
+msgstr ""
+
 msgid "GNOME Desktop Sharing"
 msgstr ""
 
@@ -906,15 +936,17 @@ msgstr ""
 msgid "Reconnect"
 msgstr ""
 
-msgid "How to Fix"
-msgstr ""
-
 msgid "The Computer’s Identity Has Changed"
 msgstr ""
 
 msgid ""
 "Check that this fingerprint matches the one in the computer’s Remote Desktop "
 "settings."
+msgstr ""
+
+msgid ""
+"Check that this fingerprint matches the one its VNC server shows for its RSA "
+"key."
 msgstr ""
 
 msgid "The SSH Server’s Identity Has Changed"
@@ -996,18 +1028,6 @@ msgid "Show"
 msgstr ""
 
 msgid "The screenshot could not be saved"
-msgstr ""
-
-msgid "Waking {name}…"
-msgstr ""
-
-msgid "Reconnecting to {name}…"
-msgstr ""
-
-msgid "The remote computer is not sending H.264 video"
-msgstr ""
-
-msgid "The remote desktop can only use one monitor"
 msgstr ""
 
 msgid "Scan Again"

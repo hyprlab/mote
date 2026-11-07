@@ -49,7 +49,7 @@ pub(super) fn page(conn: &Connection, picture: bool) -> adw::PreferencesPage {
             &conn.other_addresses.join(", "),
         ));
     }
-    if conn.takes_username() {
+    if conn.takes_username() || !conn.username.is_empty() {
         let account = conn
             .account()
             .unwrap_or_else(|| i18n("Asked when connecting"));

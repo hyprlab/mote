@@ -4,15 +4,19 @@
 //! the engine holds, so it decides when, if ever, the stream becomes TLS.
 
 mod decode;
+mod dh;
 mod handshake;
 mod input;
+mod openssl;
+mod ra2;
 mod reader;
+mod security;
 mod session;
 
 use tokio::sync::mpsc;
 
 use crate::connection::address_text;
-use crate::remote::route::{self, Stream, Waking};
+use crate::remote::route::{self, Waking};
 use crate::remote::{Command, Ending, Event, Failure, Handle, Target};
 
 /// How long a dropped session keeps trying to come back.
@@ -20,6 +24,8 @@ const RECONNECT_FOR: std::time::Duration = std::time::Duration::from_secs(120);
 
 /// Connect to `target`, and keep the session going until it ends.
 pub(crate) fn start(target: Target) -> (Handle, mpsc::Receiver<Event>) {
+    // VeNCrypt's certificates go through rustls, as RDP's do.
+    crate::remote::use_ring();
     let (commands, command_rx) = mpsc::unbounded_channel();
     let (event_tx, events) = mpsc::channel(8);
     // A thread and a runtime per session, as for RDP: one busy session
@@ -70,7 +76,7 @@ async fn drive(
             opened = open(target, events) => opened,
             () = closed(commands) => return Ok(Ending::Closed),
         };
-        let (stream, init) = match opened {
+        let opened = match opened {
             Ok(opened) => opened,
             Err(failure) => match &mut lost {
                 Some((since, wait)) if failure.passing() && since.elapsed() < RECONNECT_FOR => {
@@ -85,7 +91,14 @@ async fn drive(
                 _ => return Err(failure),
             },
         };
-        match session::run(stream, init, events, commands, &mut keys).await {
+        if events
+            .send(Event::Protection(opened.protection))
+            .await
+            .is_err()
+        {
+            return Ok(Ending::Closed);
+        }
+        match session::run(opened.stream, opened.init, events, commands, &mut keys).await {
             Err(Failure::Lost(why)) if target.reconnect => {
                 tracing::info!("the connection dropped ({why}); reconnecting");
                 lost = Some((std::time::Instant::now(), std::time::Duration::from_secs(1)));
@@ -104,7 +117,7 @@ async fn drive(
 async fn open(
     target: &mut Target,
     events: &mpsc::Sender<Event>,
-) -> Result<(Box<dyn Stream>, handshake::ServerInit), Failure> {
+) -> Result<handshake::Opened, Failure> {
     let addresses = target.addresses.clone();
     let mut waking = target.wake.map(Waking::new);
     loop {
@@ -120,12 +133,20 @@ async fn open(
                 let _ = events.send(Event::Trying(address.clone())).await;
             }
             let patience = route::patience(waking.is_some(), at + 1 == addresses.len());
-            let attempt = async {
-                let (mut stream, _) = route::open(target, events, patience).await?;
-                let init = handshake::run(&mut stream, &target.password).await?;
-                Ok::<_, Failure>((stream, init))
-            };
-            match attempt.await {
+            let mut asked = false;
+            let mut result = attempt(target, events, patience, &mut asked).await;
+            // A server can give up on a connection while its certificate
+            // or key waits on the user; once trusted, a second try goes
+            // straight through.
+            let dropped = matches!(
+                result,
+                Err(Failure::Rejected | Failure::Lost(_) | Failure::Unreachable(_))
+            );
+            if asked && dropped {
+                tracing::info!("retrying after the question of trust");
+                result = attempt(target, events, patience, &mut false).await;
+            }
+            match result {
                 Ok(opened) => return Ok(opened),
                 Err(failure) if failure.not_there() => missed.push((address, failure)),
                 Err(failure) => return Err(failure),
@@ -140,6 +161,16 @@ async fn open(
             return Err(failure);
         }
     }
+}
+
+async fn attempt(
+    target: &Target,
+    events: &mpsc::Sender<Event>,
+    patience: std::time::Duration,
+    asked: &mut bool,
+) -> Result<handshake::Opened, Failure> {
+    let (stream, _) = route::open(target, events, patience).await?;
+    handshake::run(stream, target, events, asked).await
 }
 
 /// Resolves when the interface closes the session; whatever else it sends
@@ -193,10 +224,13 @@ mod tests {
         let port: u16 = port.parse().expect("port");
         let target = Target {
             protocol: crate::connection::Protocol::Vnc,
+            // MOTE_TEST_UNENCRYPTED=1 allows a server without encryption.
+            allow_unencrypted: std::env::var_os("MOTE_TEST_UNENCRYPTED").is_some(),
             host: host.into(),
             port,
             addresses: vec![(host.into(), port)],
-            username: String::new(),
+            // MOTE_TEST_USER: for the kinds of security that take one.
+            username: var("MOTE_TEST_USER", ""),
             password: var("MOTE_TEST_PASSWORD", "mote"),
             domain: String::new(),
             width: 1024,
@@ -221,6 +255,16 @@ mod tests {
         while let Some(event) = events.blocking_recv() {
             match event {
                 Event::Connected { width, height } => eprintln!("connected {width}x{height}"),
+                Event::Certificate {
+                    fingerprint,
+                    of,
+                    reply,
+                    ..
+                } => {
+                    eprintln!("identity {of:?} {fingerprint}");
+                    let _ = reply.send(crate::remote::Trust::Accepted);
+                }
+                Event::Protection(protection) => eprintln!("protection {protection:?}"),
                 Event::Cursor(_) => eprintln!("cursor"),
                 Event::Frame(frame) => {
                     frames += 1;
@@ -266,6 +310,12 @@ mod tests {
                         )) => {
                             eprintln!("unsupported: {kinds}");
                             "unsupported".to_owned()
+                        }
+                        Ending::Failed(Failure::Security(crate::remote::Security::Unencrypted)) => {
+                            "unencrypted".to_owned()
+                        }
+                        Ending::Failed(Failure::Security(crate::remote::Security::Other(why))) => {
+                            format!("security: {why}")
                         }
                         Ending::Failed(Failure::Protocol(e) | Failure::Lost(e)) => {
                             format!("failed: {e}")

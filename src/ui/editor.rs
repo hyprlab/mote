@@ -51,6 +51,7 @@ struct Rows {
     username: adw::EntryRow,
     domain: adw::EntryRow,
     password: adw::PasswordEntryRow,
+    allow_unencrypted: adw::SwitchRow,
     mac: adw::EntryRow,
     ssh: adw::ExpanderRow,
     ssh_host: adw::EntryRow,
@@ -190,6 +191,7 @@ impl Component for Editor {
             username: entry(&i18n("User Name"), &c.username),
             domain: entry(&i18n("Domain"), &c.domain),
             password: password_entry(&i18n("Password")),
+            allow_unencrypted: adw::SwitchRow::new(),
             mac: entry(&i18n("Wake-on-LAN MAC Address"), &c.mac_address),
             ssh: adw::ExpanderRow::new(),
             ssh_host: entry(&i18n("Address"), &c.ssh_host),
@@ -264,6 +266,11 @@ impl Component for Editor {
                 .position(|n| *n == c.network)
                 .unwrap_or_default() as u32,
         );
+        rows.allow_unencrypted.set_title(&i18n("Allow Unencrypted"));
+        rows.allow_unencrypted.set_subtitle(&i18n(
+            "The password and the session cross the network as they are",
+        ));
+        rows.allow_unencrypted.set_active(c.allow_unencrypted);
         rows.view_only.set_title(&i18n("View Only"));
         rows.view_only.set_active(c.view_only);
         rows.fullscreen.set_title(&i18n("Open Fullscreen"));
@@ -400,6 +407,7 @@ impl Component for Editor {
             rows.username.upcast_ref::<gtk::Widget>(),
             rows.password.upcast_ref(),
             rows.domain.upcast_ref(),
+            rows.allow_unencrypted.upcast_ref(),
         ] {
             account.add(row);
         }
@@ -556,6 +564,7 @@ impl Component for Editor {
                         .copied()
                         .unwrap_or_default(),
                     view_only: r.view_only.is_active(),
+                    allow_unencrypted: r.allow_unencrypted.is_active(),
                     fullscreen: r.fullscreen.is_active(),
                     new_window: r.new_window.is_active(),
                     command_before: r.command_before.text().into(),
@@ -684,12 +693,12 @@ impl Editor {
 }
 
 /// Show only what applies to the protocol chosen, and move the port to
-/// the new protocol's own while it is still the old one's. VNC takes a
-/// password alone, and none of RDP's codecs, gateway or sharing; the VNC
-/// clipboard comes with section 16.
+/// the new protocol's own while it is still the old one's. VNC takes no
+/// domain, and none of RDP's codecs, gateway or sharing; the VNC clipboard
+/// comes with section 16. Only VNC can go without encryption.
 fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
+    let vnc_only = rows.allow_unencrypted.clone();
     let rdp_only: Vec<gtk::Widget> = vec![
-        rows.username.clone().upcast(),
         rows.domain.clone().upcast(),
         rows.quality.clone().upcast(),
         rows.network.clone().upcast(),
@@ -700,6 +709,7 @@ fn follow_protocol(rows: &Rows, protocol: Protocol, sharing: gtk::Widget) {
         for row in &rdp_only {
             row.set_visible(protocol == Protocol::Rdp);
         }
+        vnc_only.set_visible(protocol == Protocol::Vnc);
     };
     show(protocol);
     let (port, last) = (rows.port.clone(), Cell::new(protocol));

@@ -25,6 +25,8 @@ pub(super) struct SignIn {
     password: adw::PasswordEntryRow,
     domain: adw::EntryRow,
     remember: adw::SwitchRow,
+    /// The user name is needed, and typed first.
+    username_first: bool,
 }
 
 impl SignIn {
@@ -44,10 +46,10 @@ impl SignIn {
         let remember = adw::SwitchRow::new();
         remember.set_title(&i18n("Remember Password"));
         remember.set_active(true);
-        // VNC Authentication takes a password alone.
-        let vnc = connection.protocol == crate::connection::Protocol::Vnc;
-        username.set_visible(!vnc);
-        domain.set_visible(!vnc);
+        // VNC has no domains, and most of its servers want a password
+        // alone; a user name, when one does.
+        domain.set_visible(connection.takes_username());
+        let username_first = connection.takes_username();
 
         let group = adw::PreferencesGroup::new();
         for row in [
@@ -84,6 +86,7 @@ impl SignIn {
             password,
             domain,
             remember,
+            username_first,
         }
     }
 
@@ -98,7 +101,7 @@ impl SignIn {
 
     /// Put the cursor where typing should start.
     pub(super) fn focus(&self) {
-        if self.username.is_visible() && self.username.text().trim().is_empty() {
+        if self.username_first && self.username.text().trim().is_empty() {
             self.username.grab_focus();
         } else {
             self.password.grab_focus();
@@ -130,8 +133,11 @@ pub(super) fn connecting(page: &adw::StatusPage) {
 
 /// Shown when a session ends without the window closing; the reason goes
 /// in its title and description. With it, How to Fix, shown when the
-/// server ended it for want of H.264.
-pub(super) fn ended(sender: &ComponentSender<Session>) -> (adw::StatusPage, gtk::Button) {
+/// server ended it for want of H.264, and Allow Unencrypted, when a VNC
+/// server offers no encryption.
+pub(super) fn ended(
+    sender: &ComponentSender<Session>,
+) -> (adw::StatusPage, gtk::Button, gtk::Button) {
     let page = adw::StatusPage::new();
     page.set_icon_name(Some("network-offline-symbolic"));
     let buttons = gtk::Box::new(gtk::Orientation::Vertical, 12);
@@ -148,8 +154,14 @@ pub(super) fn ended(sender: &ComponentSender<Session>) -> (adw::StatusPage, gtk:
     let input = sender.input_sender().clone();
     help.connect_clicked(move |_| input.emit(SessionInput::H264Help));
     buttons.append(&help);
+    let allow = gtk::Button::with_label(&i18n("Allow Unencrypted"));
+    allow.add_css_class("pill");
+    allow.set_visible(false);
+    let input = sender.input_sender().clone();
+    allow.connect_clicked(move |_| input.emit(SessionInput::AllowUnencrypted));
+    buttons.append(&allow);
     page.set_child(Some(&buttons));
-    (page, help)
+    (page, help, allow)
 }
 
 /// Ask whether to trust a server's certificate, an SSH server's key or a
@@ -174,6 +186,18 @@ pub(super) fn certificate_dialog(
             named("Trust {name}?"),
             i18n(
                 "Check that this fingerprint matches the one in the computer’s Remote Desktop settings.",
+            ),
+        ),
+        (Identity::ServerKey, true) => (
+            i18n("The Computer’s Identity Has Changed"),
+            named(
+                "{name} presented a different key from the one trusted before. Someone may be intercepting the connection, or the computer was set up again.",
+            ),
+        ),
+        (Identity::ServerKey, false) => (
+            named("Trust {name}?"),
+            i18n(
+                "Check that this fingerprint matches the one its VNC server shows for its RSA key.",
             ),
         ),
         (Identity::Ssh, true) => (

@@ -47,6 +47,12 @@ pub(crate) struct Connection {
     /// A session said that the server can read the clipboard; it says so
     /// at the first session that shares it.
     pub(crate) clipboard_told: bool,
+    /// VNC: connect when the server offers no encryption, rather than stop
+    /// before the password goes out.
+    pub(crate) allow_unencrypted: bool,
+    /// A session said how the server protects it, when that is less than
+    /// encryption by a server whose identity is trusted; said once.
+    pub(crate) protection_told: bool,
     /// Play the remote desktop's sound here, rather than leave it there.
     pub(crate) sound: bool,
     /// Send the microphone to the remote desktop.
@@ -254,6 +260,8 @@ impl Default for Connection {
             clipboard: false,
             clipboard_files: false,
             clipboard_told: false,
+            allow_unencrypted: false,
+            protection_told: false,
             sound: true,
             microphone: false,
             folder: String::new(),

@@ -25,7 +25,9 @@ impl Session {
                 let known = also
                     .iter()
                     .chain([&(host.clone(), port)])
-                    .filter_map(|(host, port)| config::trusted_fingerprint(host, *port))
+                    .filter_map(|(host, port)| {
+                        config::trusted_fingerprint(host, *port, of == remote::Identity::ServerKey)
+                    })
                     .collect();
                 self.check_certificate((&host, port), fingerprint, of, known, reply, root);
             }
@@ -85,6 +87,7 @@ impl Session {
                 }
             }
             Event::Bell => self.display.error_bell(),
+            Event::Protection(protection) => self.tell_protection(protection, sender),
             Event::Cursor(cursor) => {
                 for display in self.spread.iter().flat_map(|s| s.displays()) {
                     display.set_remote_cursor(cursor.clone());
@@ -156,13 +159,36 @@ impl Session {
                 title,
                 description,
                 help,
+                allow,
             } => {
                 self.help.set_visible(help);
+                self.allow.set_visible(allow);
                 self.ended.set_title(&title);
                 self.ended
                     .set_description(Some(&gtk::glib::markup_escape_text(&description)));
                 self.page = Page::Ended;
             }
         }
+    }
+
+    /// Say, once for a connection, that its server protects the session
+    /// less than encryption by a server known to be the right one.
+    fn tell_protection(&mut self, protection: remote::Protection, sender: &ComponentSender<Self>) {
+        use remote::Protection;
+        let text = match protection {
+            Protection::Verified => return,
+            Protection::Unverified => i18n("Encrypted, but nothing shows which computer this is"),
+            Protection::PasswordOnly => i18n("Only the password was encrypted, not the session"),
+            Protection::Unencrypted => i18n("Not encrypted: the network can see this session"),
+        };
+        tracing::info!("{text}");
+        if self.connection.protection_told {
+            return;
+        }
+        self.connection.protection_told = true;
+        let toast = adw::Toast::new(&text);
+        toast.set_timeout(10);
+        self.toasts.add_toast(toast);
+        let _ = sender.output(SessionOutput::ProtectionTold(self.connection.id.clone()));
     }
 }

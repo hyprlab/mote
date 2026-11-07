@@ -97,6 +97,18 @@ impl AppModel {
                     config::save_connections(&self.connections);
                 }
             }
+            SessionOutput::AllowUnencrypted(id) => {
+                if let Some(connection) = self.connections.iter_mut().find(|c| c.id == id) {
+                    connection.allow_unencrypted = true;
+                    config::save_connections(&self.connections);
+                }
+            }
+            SessionOutput::ProtectionTold(id) => {
+                if let Some(connection) = self.connections.iter_mut().find(|c| c.id == id) {
+                    connection.protection_told = true;
+                    config::save_connections(&self.connections);
+                }
+            }
             SessionOutput::Detach(id) => self.detach(&id, sender),
             SessionOutput::Attach(id) => self.attach(&id),
         }

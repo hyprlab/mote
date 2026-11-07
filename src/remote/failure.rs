@@ -79,6 +79,12 @@ pub(crate) enum Security {
     /// The VNC server asks only for kinds of security this side lacks; the
     /// names of those it offered.
     Unsupported(String),
+    /// The VNC server offers no encryption, and the connection doesn't
+    /// allow going without.
+    Unencrypted,
+    /// The VNC server's encryption needs OpenSSL, which this computer
+    /// lacks.
+    NoOpenSsl,
     Other(String),
 }
 

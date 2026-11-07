@@ -371,6 +371,7 @@ mod tests {
         let (width, height) = size.split_once('x').expect("<width>x<height>");
         let target = Target {
             protocol: crate::connection::Protocol::Rdp,
+            allow_unencrypted: false,
             host: host.into(),
             port: port.parse().expect("port"),
             addresses: vec![(host.into(), port.parse().expect("port"))],
@@ -522,6 +523,7 @@ mod tests {
                 }
                 Event::Cursor(_) => eprintln!("cursor"),
                 Event::Bell => eprintln!("bell"),
+                Event::Protection(protection) => eprintln!("protection {protection:?}"),
                 Event::Trying(address) => eprintln!("trying {address}"),
                 Event::Ended(ending) => {
                     let text = match ending {
@@ -548,6 +550,8 @@ mod tests {
                             Security::LegacyOnly => "legacy only",
                             Security::OldTls => "old tls",
                             Security::Unsupported(_) => "unsupported",
+                            Security::Unencrypted => "unencrypted",
+                            Security::NoOpenSsl => "no openssl",
                             Security::Other(_) => "security",
                         }
                         .to_owned(),

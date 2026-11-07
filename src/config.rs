@@ -236,12 +236,15 @@ pub(crate) fn save_connections(connections: &[Connection]) {
 }
 
 /// A server certificate trusted on first use, by the address it was
-/// reached at.
+/// reached at; or a VNC server's RSA key, kept apart, as a server can have
+/// both and each is trusted on its own.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TrustedServer {
     host: String,
     port: u16,
     fingerprint: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    key: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -255,23 +258,24 @@ fn certificates_path() -> PathBuf {
 }
 
 /// The fingerprint trusted for `host:port`, if any.
-pub(crate) fn trusted_fingerprint(host: &str, port: u16) -> Option<String> {
+pub(crate) fn trusted_fingerprint(host: &str, port: u16, key: bool) -> Option<String> {
     load::<CertificatesFile>(&certificates_path())?
         .servers
         .into_iter()
-        .find(|s| s.port == port && s.host.eq_ignore_ascii_case(host))
+        .find(|s| s.port == port && s.key == key && s.host.eq_ignore_ascii_case(host))
         .map(|s| s.fingerprint)
 }
 
 /// Trust `fingerprint` for `host:port` from now on, in place of any other.
-pub(crate) fn trust_certificate(host: &str, port: u16, fingerprint: &str) {
+pub(crate) fn trust_certificate(host: &str, port: u16, key: bool, fingerprint: &str) {
     let mut file = load::<CertificatesFile>(&certificates_path()).unwrap_or_default();
     file.servers
-        .retain(|s| !(s.port == port && s.host.eq_ignore_ascii_case(host)));
+        .retain(|s| !(s.port == port && s.key == key && s.host.eq_ignore_ascii_case(host)));
     file.servers.push(TrustedServer {
         host: host.to_owned(),
         port,
         fingerprint: fingerprint.to_owned(),
+        key,
     });
     save(&certificates_path(), &file);
 }

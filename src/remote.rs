@@ -39,6 +39,8 @@ pub(crate) struct Pointer {
 #[derive(Clone)]
 pub(crate) struct Target {
     pub(crate) protocol: crate::connection::Protocol,
+    /// VNC: connect even when the server offers no encryption.
+    pub(crate) allow_unencrypted: bool,
     /// Where the connection is going right now.
     pub(crate) host: String,
     pub(crate) port: u16,
@@ -122,6 +124,9 @@ pub(crate) enum Event {
     Cursor(Cursor),
     /// The server rang its bell.
     Bell,
+    /// How well the session is protected on the network, once it is
+    /// known: always encrypted for RDP, said for VNC.
+    Protection(Protection),
     Clipboard(ClipboardEvent),
     /// The server can't spread its desktop over several monitors.
     OneMonitor,
@@ -162,10 +167,25 @@ pub(crate) struct Rect {
     pub(crate) height: i32,
 }
 
+/// How well a session is protected on the network.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Protection {
+    /// Encrypted, by a server whose certificate or key was trusted.
+    Verified,
+    /// Encrypted, but anonymously: no certificate or key says which
+    /// server it is.
+    Unverified,
+    /// The password was protected; the session after it is not.
+    PasswordOnly,
+    Unencrypted,
+}
+
 /// Whose identity [`Event::Certificate`] asks about.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Identity {
     Server,
+    /// A VNC server's RSA key, which RSA-AES identifies it by.
+    ServerKey,
     Ssh,
     Gateway,
 }
@@ -239,6 +259,19 @@ impl Handle {
 /// Called before any TLS; only the first call does anything.
 pub(crate) fn use_ring() {
     let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+/// SHA-256 of a certificate or a key, as `ab:cd:…`, the form GNOME's
+/// Remote Desktop settings show a certificate's in.
+pub(crate) fn fingerprint(der: &[u8]) -> String {
+    let hex = gtk::glib::compute_checksum_for_data(gtk::glib::ChecksumType::Sha256, der)
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    hex.as_bytes()
+        .chunks(2)
+        .map(|pair| std::str::from_utf8(pair).unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join(":")
 }
 
 /// The kind of I/O error at the root of an error, if there is one.

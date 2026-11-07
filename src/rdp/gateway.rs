@@ -8,10 +8,10 @@ use ironrdp_mstsgu::{GwClient, GwConnectTarget, GwErrorKind};
 use ironrdp_tls::{CertificateValidation, CertificateValidationCallback};
 use tokio::sync::{mpsc, oneshot};
 
-use super::connect::fingerprint;
 use super::{
     Event, Failure, Hop, Identity, Target, Trust, Tunnel, Unreachable, describe, io_error,
 };
+use crate::remote::fingerprint;
 use crate::remote::route::Stream;
 
 pub(crate) async fn open(

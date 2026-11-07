@@ -343,6 +343,12 @@ msgstr "Type de connexion"
 msgid "Only supported by xrdp"
 msgstr "Pris en charge uniquement par xrdp"
 
+msgid "Allow Unencrypted"
+msgstr ""
+
+msgid "The password and the session cross the network as they are"
+msgstr ""
+
 msgid "View Only"
 msgstr "Lecture seule"
 
@@ -668,6 +674,30 @@ msgstr "L’écran de connexion a expiré avant que quelqu’un ne se connecte."
 msgid "The computer ended the session."
 msgstr "L’ordinateur a mis fin à la session."
 
+msgid "Waking {name}…"
+msgstr "Réveil de {name}…"
+
+msgid "Reconnecting to {name}…"
+msgstr "Reconnexion à {name}…"
+
+msgid "The remote computer is not sending H.264 video"
+msgstr "L’ordinateur distant n’envoie pas de vidéo H.264"
+
+msgid "How to Fix"
+msgstr "Comment corriger"
+
+msgid "The remote desktop can only use one monitor"
+msgstr "Le bureau distant ne peut utiliser qu’un seul moniteur"
+
+msgid "Encrypted, but nothing shows which computer this is"
+msgstr ""
+
+msgid "Only the password was encrypted, not the session"
+msgstr ""
+
+msgid "Not encrypted: the network can see this session"
+msgstr ""
+
 msgid "GNOME Desktop Sharing"
 msgstr "Partage de bureau GNOME"
 
@@ -962,15 +992,20 @@ msgstr "Taille réelle"
 msgid "Reconnect"
 msgstr "Se reconnecter"
 
-msgid "How to Fix"
-msgstr "Comment corriger"
-
 msgid "The Computer’s Identity Has Changed"
 msgstr "L’identité de l’ordinateur a changé"
 
 msgid ""
 "Check that this fingerprint matches the one in the computer’s Remote Desktop "
 "settings."
+msgstr ""
+"Vérifiez que cette empreinte correspond à celle des paramètres de bureau à "
+"distance de l’ordinateur."
+
+#, fuzzy
+msgid ""
+"Check that this fingerprint matches the one its VNC server shows for its RSA "
+"key."
 msgstr ""
 "Vérifiez que cette empreinte correspond à celle des paramètres de bureau à "
 "distance de l’ordinateur."
@@ -1067,18 +1102,6 @@ msgstr "Afficher"
 
 msgid "The screenshot could not be saved"
 msgstr "La capture d’écran n’a pas pu être enregistrée"
-
-msgid "Waking {name}…"
-msgstr "Réveil de {name}…"
-
-msgid "Reconnecting to {name}…"
-msgstr "Reconnexion à {name}…"
-
-msgid "The remote computer is not sending H.264 video"
-msgstr "L’ordinateur distant n’envoie pas de vidéo H.264"
-
-msgid "The remote desktop can only use one monitor"
-msgstr "Le bureau distant ne peut utiliser qu’un seul moniteur"
 
 msgid "Scan Again"
 msgstr ""

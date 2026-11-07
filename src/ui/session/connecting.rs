@@ -67,6 +67,7 @@ impl Session {
         self.display.set_asked(width, height);
         let target = remote::Target {
             protocol: self.connection.protocol,
+            allow_unencrypted: self.connection.allow_unencrypted,
             host: self.connection.host.clone(),
             port: self.connection.port,
             addresses: self.connection.addresses(),
@@ -133,7 +134,7 @@ impl Session {
         }
         let reply = Rc::new(RefCell::new(Some(reply)));
         let name = match of {
-            Identity::Server => self.connection.title(),
+            Identity::Server | Identity::ServerKey => self.connection.title(),
             Identity::Ssh | Identity::Gateway => host,
         };
         let dialog = pages::certificate_dialog(name, of, &fingerprint, !known.is_empty());
@@ -143,7 +144,7 @@ impl Session {
                 return;
             };
             if response == "trust" {
-                config::trust_certificate(&host, port, &fingerprint);
+                config::trust_certificate(&host, port, of == Identity::ServerKey, &fingerprint);
                 let _ = reply.send(Trust::Accepted);
             } else {
                 let _ = reply.send(Trust::Rejected);
