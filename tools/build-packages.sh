@@ -182,7 +182,7 @@ Architecture: $arch
 Maintainer: Hyprlab <hyprlab@proton.me>
 Installed-Size: $(du -sk --exclude=DEBIAN "$pkg" | cut -f1)
 Depends: $deps
-Recommends: libpulse0, libopus0, libavcodec62 | libavcodec61, libopenh264-8, gnome-keyring
+Recommends: libpulse0, libopus0, libavcodec62 | libavcodec61, libopenh264-8, libssl3t64 | libssl3, gnome-keyring
 Homepage: https://github.com/hyprlab/mote
 Description: Connect to Linux desktops over RDP
  Mote is a remote desktop client for GNOME, for Linux machines that run an

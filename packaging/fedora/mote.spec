@@ -12,12 +12,14 @@ URL:            https://github.com/hyprlab/mote
 Source0:        %{name}-%{version}-bin.tar
 
 # Libraries the app opens when it needs them, which rpm can't see it link:
-# sound and the microphone, Opus sound, and H.264 through FFmpeg or
-# OpenH264 (Fedora's from its Cisco repository).
+# sound and the microphone, Opus sound, H.264 through FFmpeg or OpenH264
+# (Fedora's from its Cisco repository), and OpenSSL for the anonymous TLS
+# of GNOME's and TigerVNC's VNC.
 Recommends:     pulseaudio-libs
 Recommends:     opus
 Recommends:     libavcodec-free
 Recommends:     openh264
+Recommends:     openssl-libs
 # Passwords are kept through the Secret Service.
 Recommends:     gnome-keyring
 
