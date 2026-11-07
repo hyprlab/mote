@@ -61,6 +61,16 @@ Sound and the microphone go through PulseAudio's simple API
 installs them. Without libopus, servers send uncompressed PCM, about twelve
 times the bandwidth; without libpulse-simple there is no sound.
 
+### VNC encryption
+
+GNOME Remote Desktop's VNC and TigerVNC's VeNCrypt TLS subtypes encrypt
+with anonymous TLS, which rustls doesn't implement. For those alone Mote
+loads OpenSSL 3 (`libssl.so.3` and `libcrypto.so.3`) at run time, which the
+GNOME runtime and every desktop distribution have; nothing links it, so
+there is no build dependency. Without it, those servers end the attempt
+with a message naming OpenSSL, and every other kind of VNC security still
+works.
+
 ## Building and running
 
 ```sh

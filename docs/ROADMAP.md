@@ -109,7 +109,7 @@ headless GNOME Remote Desktop signed in over it with
 | 11 | Settings and polish | Done |
 | 12 | Packaging | Done |
 | 13 | VNC first session | Done |
-| 14 | VNC security | Planned |
+| 14 | VNC security | Done |
 | 15 | VNC display | Planned |
 | 16 | VNC clipboard | Planned |
 | 17 | VNC connections | Planned |
@@ -676,6 +676,40 @@ Not yet tried: KRfb, x11vnc, wayvnc, and the menu's key combinations.
 - A server that offers no encryption stops the connection before the
   password goes out, with what to change on the server and Allow
   Unencrypted for the connection.
+
+Built:
+
+- RSA-AES in its four kinds (RA2, RA2_256, RA2ne, RA2ne_256), VeNCrypt
+  with its certificate, anonymous TLS and Plain subtypes, GNOME's anonymous
+  TLS (type 18), and Apple's Diffie-Hellman, beside None and VNC
+  Authentication. They are taken in that order of strength, RSA-AES first
+  as TigerVNC and wayvnc offer it beside VeNCrypt and its key says which
+  server it is; taking the same one each time keeps the identity trusted
+  the same.
+- Anonymous TLS goes through OpenSSL 3, loaded at run time; a computer
+  without it says so when a server needs it.
+- A certificate or an RSA key is asked about before anything secret goes
+  out, by its SHA-256 fingerprint, and kept among the trusted
+  certificates; a key and a certificate of one server are trusted apart.
+- Allow Unencrypted, a switch in the editor for VNC connections and a
+  button on the page that stops one, lets a session go with the password
+  alone protected, or nothing at all. A connection's first session that is
+  less than encrypted by a trusted server says so, once.
+- A VNC connection takes a user name again, for VeNCrypt Plain, RSA-AES
+  and Apple's sign-in, which want one; it is never required.
+
+RFB's description of RSA-AES gives its random numbers as 16 bytes; for
+RA2_256 and RA2ne_256, TigerVNC and wayvnc's neatvnc both send and expect
+32, and Mote does as they do.
+
+Tried against TigerVNC 1.16.2 (RA2_256, RA2, RA2ne, X509Vnc, TLSVnc and
+VNC Authentication), wayvnc 0.9.1 (RA2_256, RA2, X509Plain and Apple's
+Diffie-Hellman, `temp/wayvnc/run.sh`) and a headless GNOME Remote Desktop
+50 (type 18): signing in, a wrong password, a missing user name, the
+question of trust, and the stop before an unencrypted server. Not yet
+tried: the Flatpak, where OpenSSL comes from the runtime; KRfb and
+x11vnc; and GNOME's Desktop Sharing with both RDP and VNC on, where the
+headless server stops taking RDP connections once a VNC client leaves.
 
 ### 15. VNC display
 
