@@ -112,7 +112,7 @@ headless GNOME Remote Desktop signed in over it with
 | 14 | VNC security | Done |
 | 15 | VNC display | Done |
 | 16 | VNC clipboard | Done |
-| 17 | VNC connections | Planned |
+| 17 | VNC connections | Done |
 
 ### 1. Foundation
 
@@ -814,6 +814,52 @@ Wayland gives a clipboard to a client with one.
   listening for a server that connects out, as `x11vnc -connect` does.
   UltraVNC's and TightVNC's chat, file transfer and repeater are not
   planned: no Linux server here uses them.
+
+Built:
+
+- The editor and the connection's row came with sections 13 and 14. The
+  search field takes `vnc://host[:port]`, and Enter on one nothing matches
+  opens the editor on a VNC connection to it.
+- Import of `.vnc` files, from TigerVNC's viewer (`ServerName`, view only,
+  fullscreen) and RealVNC's (`Host`), beside `.rdp` files in the same
+  dialog; export writes TigerVNC's, which both read. VNC addresses name a
+  display, `host:1` for port 5901, or a port, `host::5901`, as their
+  viewers read them; an IPv6 address needs its brackets. Import from
+  Remmina takes its VNC profiles too, with their quality as the codec and
+  their Disable encryption as Allow Unencrypted; VNCI profiles, which wait
+  for a server to connect, are left out.
+- Scan Network tries ports 5900 to 5903 beside RDP's, and takes what
+  greets as a VNC server for one. A scan takes three times as long.
+- The server's Caps, Num and Scroll Lock, where it tells them through the
+  QEMU or VMware LED pseudo-encoding: when the desktop takes the keyboard,
+  the keys that differ from this keyboard's are pressed, as RDP's
+  synchronize does. TigerVNC and wayvnc both tell them.
+- The app's descriptions (the About window, the desktop file, AppStream and
+  the README) name VNC beside RDP.
+
+Decided against, for now: sound, which only QEMU's VNC console sends, and
+listening for a server that connects out, which none of these servers do
+unless told to and nobody has asked for.
+
+Tried: the lock keys against TigerVNC and wayvnc, Caps Lock going on as
+asked and the server saying so; the probe against stand-ins for a VNC
+server and something else; the files and profiles in unit tests. Not
+tried: a scan of a real network, as it would reach the maintainer's own
+desktop, whose GNOME Remote Desktop may stop taking VNC connections after
+the probe leaves, as the headless one does.
+
+What Remmina's VNC plugin offers, and where Mote has it:
+
+| Remmina | Mote |
+| --- | --- |
+| Quality: Poor, Medium, Good, Best | Codec: Low Bandwidth, Best Available, Lossless |
+| Color depth | Not offered: the codec choice sets the picture's cost |
+| Show remote cursor | The server's pointer, drawn here |
+| View only, Disable clipboard sync | View Only, Clipboard |
+| Disable encryption | Allow Unencrypted |
+| SSH tunnel, pre and post commands | The same as for RDP |
+| Send Ctrl+Alt+Del, keyboard grab | The same as for RDP |
+| Listen for a connection (VNCI), repeater, chat | Not planned |
 
 ## Remmina parity
 
