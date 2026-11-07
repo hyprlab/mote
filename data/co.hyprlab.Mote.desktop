@@ -1,12 +1,12 @@
 [Desktop Entry]
 Name=Mote
 GenericName=Remote Desktop Client
-Comment=Connect to Linux desktops over RDP
+Comment=Connect to Linux desktops over RDP and VNC
 Exec=mote
 Icon=co.hyprlab.Mote
 Terminal=false
 Type=Application
 Categories=GNOME;GTK;Network;RemoteAccess;
-Keywords=RDP;Remote Desktop;xrdp;
+Keywords=RDP;VNC;Remote Desktop;xrdp;TigerVNC;
 StartupNotify=true
 StartupWMClass=co.hyprlab.Mote

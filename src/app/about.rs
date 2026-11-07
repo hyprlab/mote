@@ -102,7 +102,7 @@ fn identity(page: &gtk::Box) {
     version.set_margin_top(8);
     page.append(&version);
 
-    let description = gtk::Label::new(Some(&i18n("GNOME-native RDP client")));
+    let description = gtk::Label::new(Some(&i18n("GNOME-native RDP and VNC client")));
     description.set_wrap(true);
     description.set_justify(gtk::Justification::Center);
     description.add_css_class("dim-label");

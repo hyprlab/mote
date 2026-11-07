@@ -6,13 +6,14 @@
   <project_license>AGPL-3.0-or-later</project_license>
 
   <name>Mote</name>
-  <summary>Connect to Linux desktops over RDP</summary>
+  <summary>Connect to Linux desktops over RDP and VNC</summary>
 
   <description>
     <p>
       Mote is a remote desktop client for GNOME specifically designed to
-      connect to Linux desktops over RDP. Supported implementations include
-      GNOME Remote Desktop (including Remote Login), xrdp and KRdp.
+      connect to Linux desktops over RDP and VNC. Supported implementations
+      include GNOME Remote Desktop (including Remote Login), xrdp, KRdp,
+      TigerVNC and wayvnc.
     </p>
     <ul>
       <li>Designed and tested for full compatibility with GNOME Remote Desktop (and Remote Login), xrdp and KRdp</li>
@@ -20,10 +21,11 @@
       <li>H.264 video encoding with RemoteFX fallback</li>
       <li>Multi-monitor support</li>
       <li>Full clipboard sharing between host and remote machines</li>
+      <li>VNC with RSA-AES, VeNCrypt and TLS encryption, resizing and clipboard sharing</li>
       <li>SSH tunnels and RD gateway support</li>
       <li>Wake-on-LAN support with built-in fault tolerance</li>
       <li>Sound, microphone and folder sharing with supported remote sessions</li>
-      <li>Import existing RDP files directly into the app or import from Remmina</li>
+      <li>Import existing RDP and VNC files directly into the app or import from Remmina</li>
     </ul>
   </description>
 

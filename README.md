@@ -4,7 +4,7 @@
 
 # Mote
 
-A GNOME-native RDP client written in Rust with IronRDP backend specifcially designed for connecting to Linux desktops. Full support for GNOME Remote Desktop, xrdp and KRdp.
+A GNOME-native RDP and VNC client written in Rust, with an IronRDP backend for RDP and its own for VNC, specifically designed for connecting to Linux desktops. Full support for GNOME Remote Desktop, xrdp, KRdp, TigerVNC and wayvnc.
 
 <p align="center">
   <picture>
