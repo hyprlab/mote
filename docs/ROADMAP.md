@@ -80,11 +80,11 @@ the way through the handshake without redesigning it. gtk-vnc and
 libvncclient have all of it, in C. RFB is a small protocol, and the rest of
 what a session needs is already here: the session thread, trust on first
 use, the SSH tunnel, reconnection, the frame buffers, the H.264 decoders,
-the clipboard and the keyring. The decoders for Tight, TRLE and ZRLE start
-from vnc-rs's.
+the clipboard and the keyring.
 
-The handshake is a state machine the session drives, as IronRDP's connector
-is, so the session decides when the stream becomes TLS. Certificates go
+The handshake runs over a stream the engine holds, so the engine decides
+when the stream becomes TLS, as Mote does around IronRDP's connector.
+Certificates go
 through rustls and the trust store RDP uses. GNOME Remote Desktop and
 TigerVNC default to anonymous TLS, with Diffie-Hellman and no certificate,
 which rustls doesn't implement; for that alone Mote loads OpenSSL's
@@ -108,7 +108,7 @@ headless GNOME Remote Desktop signed in over it with
 | 10 | Session controls | Done |
 | 11 | Settings and polish | Done |
 | 12 | Packaging | Done |
-| 13 | VNC first session | Planned |
+| 13 | VNC first session | In progress |
 | 14 | VNC security | Planned |
 | 15 | VNC display | Planned |
 | 16 | VNC clipboard | Planned |
@@ -621,8 +621,9 @@ GitHub, and a release from a tag.
   shared. This is tried against the RDP servers before VNC starts.
 - The handshake: RFB 3.3, 3.7 and 3.8; None and VNC Authentication; a
   32-bit pixel format laid out as the frame buffers are.
-- Raw, CopyRect, Hextile, Zlib, TRLE, ZRLE and Tight with JPEG; LastRect,
-  the server's cursor, DesktopSize, DesktopName and ExtendedDesktopSize.
+- Raw, CopyRect, Hextile, Zlib, ZRLE and Tight with JPEG; LastRect, the
+  server's cursor, DesktopSize, DesktopName and ExtendedDesktopSize. TRLE
+  is left out: only RealVNC's server sends it.
 - Keys as keysyms, and as QEMU extended key events where the server takes
   them, so the remote layout decides what a key types. Five buttons, back
   and forward through ExtendedMouseButtons, and smooth scrolling gathered
@@ -632,6 +633,30 @@ GitHub, and a release from a tag.
   declined or left unanswered, something other than a VNC server, and
   VNC Authentication's limit of 8 characters.
 - Limits on sizes and decompression, and fuzzing for each decoder.
+
+Built so far:
+
+- The connection editor has a Protocol row. A VNC connection takes a
+  password alone, and its editor leaves out the user name, the domain, the
+  codec, the connection type, the RD Gateway and Sharing; the port moves
+  to 5900 with it, unless another was set. The sidebar and the
+  connection's page say VNC.
+- The session's interface moved out of the RDP engine into types of its
+  own (`src/remote`), shared by both engines, with the way to the server,
+  the frame buffers and the reasons a session ends.
+- The engine (`src/vnc`): the handshake, with None and VNC Authentication;
+  every encoding above, decoded on the session's thread as the update
+  arrives; the next update asked for as soon as one has been read; keys,
+  buttons and the wheel; the server's pointer and its bell; reconnection.
+  A server that offers only security types still to come is named with
+  them.
+
+Tried against TigerVNC 1.16.2's `Xvnc` (`temp/vnc/run.sh`): signing in, a
+refused password, typing through QEMU extended key events, and each
+encoding asked for alone, ZRLE, Hextile and Zlib matching Raw pixel for
+pixel and Tight's JPEG within 14 levels of it. Pointed at an RDP server's
+port, the engine gives up after 10 seconds of silence. Not yet tried:
+KRfb, x11vnc, wayvnc, and the menu's key combinations.
 
 ### 14. VNC security
 
