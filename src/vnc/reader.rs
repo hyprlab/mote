@@ -481,3 +481,105 @@ fn exactly(data: Vec<u8>, size: usize) -> Result<Vec<u8>, Bad> {
         Err(format!("{} bytes inflated for {size}", data.len()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A small, seeded generator, so a failure repeats.
+    struct Noise(u64);
+
+    impl Noise {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+
+        fn bytes(&mut self, most: usize) -> Vec<u8> {
+            let length = self.next() as usize % (most + 1);
+            (0..length).map(|_| self.next() as u8).collect()
+        }
+    }
+
+    /// Read `data` as everything a server sent, to its end.
+    async fn read_all(data: Vec<u8>) {
+        let desktop = Arc::new(Mutex::new(Desktop::new(64, 48)));
+        let (notes, mut heard) = mpsc::channel(16);
+        let listening = tokio::spawn(async move { while heard.recv().await.is_some() {} });
+        run(std::io::Cursor::new(data), desktop, notes).await;
+        listening.await.unwrap();
+    }
+
+    /// A framebuffer update holding one rectangle of `kind`, whose body is
+    /// noise: the message's frame is right, so the noise reaches the
+    /// decoder itself.
+    fn update(kind: i32, noise: &mut Noise) -> Vec<u8> {
+        let mut data = vec![0, 0, 0, 1];
+        let width = (noise.next() % 65) as u16;
+        let height = (noise.next() % 49) as u16;
+        for value in [0, 0, width, height] {
+            data.extend_from_slice(&value.to_be_bytes());
+        }
+        data.extend_from_slice(&kind.to_be_bytes());
+        // A plausible length first, for the encodings that start with one.
+        data.extend_from_slice(&((noise.next() % 600) as u32).to_be_bytes());
+        data.extend(noise.bytes(600));
+        data
+    }
+
+    #[tokio::test]
+    async fn noise_from_a_server_ends_the_session_without_a_panic() {
+        let mut noise = Noise(0x9E37_79B9_7F4A_7C15);
+        for _ in 0..2000 {
+            read_all(noise.bytes(256)).await;
+        }
+        let kinds = [
+            encoding::RAW,
+            encoding::COPY_RECT,
+            encoding::HEXTILE,
+            encoding::ZLIB,
+            encoding::TIGHT,
+            encoding::ZRLE,
+            encoding::CURSOR,
+            encoding::DESKTOP_SIZE,
+            encoding::EXTENDED_DESKTOP_SIZE,
+            encoding::DESKTOP_NAME,
+        ];
+        for round in 0..6000 {
+            let kind = kinds[round % kinds.len()];
+            read_all(update(kind, &mut noise)).await;
+        }
+        // Noise compressed as it should be, so ZRLE's tiles and Zlib's
+        // pixels see it.
+        for round in 0..3000 {
+            let kind = [encoding::ZRLE, encoding::ZLIB][round % 2];
+            let mut data = update(kind, &mut noise);
+            data.truncate(16);
+            let mut compressed = Vec::with_capacity(2048);
+            flate2::Compress::new(flate2::Compression::fast(), true)
+                .compress_vec(&noise.bytes(1500), &mut compressed, flate2::FlushCompress::Sync)
+                .unwrap();
+            data.extend_from_slice(&(compressed.len() as u32).to_be_bytes());
+            data.extend(compressed);
+            read_all(data).await;
+        }
+    }
+
+    #[test]
+    fn noise_in_compressed_data_is_refused_without_a_panic() {
+        let mut noise = Noise(0x2545_F491_4F6C_DD1D);
+        for _ in 0..3000 {
+            let data = noise.bytes(400);
+            let (width, height) = ((noise.next() % 80) as u16, (noise.next() % 80) as u16);
+            let _ = decode::zrle(&data, width, height);
+            let _ = decode::jpeg(&data, width, height);
+            let _ = decode::inflate(&mut Decompress::new(true), &data, 4096);
+            let colors = (0..noise.next() % 4).map(|_| [0, 0, 0, 0xFF]).collect();
+            for filter in [Filter::Copy, Filter::Gradient, Filter::Palette(colors)] {
+                let _ = filter.pixels(&data, width, height);
+            }
+        }
+    }
+}
