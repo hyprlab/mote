@@ -313,3 +313,17 @@ percent (100 by default), `MOTE_TEST_SECONDS` how long to stay.
 `remotefx`. The log names the codec the server picked; the private GNOME
 Remote Desktop has no GPU to encode H.264 on and sends progressive RemoteFX,
 so H.264 is measured against xrdp or KRdp.
+
+VNC is measured the same way, through its own live test. `GRD_VNC=1` has
+the private GNOME Remote Desktop serve VNC on port 5997, password `mote`,
+instead of RDP; it takes one VNC client, and then needs starting again:
+
+```sh
+systemd-run --user --collect --unit=mote-grd -E GRD_VNC=1 -E GRD_CLIENT temp/grd/run.sh
+MOTE_TEST_VNC=localhost:5997 MOTE_TEST_SECONDS=12 MOTE_TEST_CODEC=best \
+  MOTE_LOG=mote::stats=info cargo test vnc::tests::live -- --ignored --nocapture
+```
+
+`MOTE_TEST_CODEC` is `best`, `lossless` or `low`; `MOTE_TEST_ENCODING`
+asks for one encoding alone (`tight`, `zrle`, `hextile`, `zlib`, `h264` or
+`raw`), and `MOTE_TEST_SIZE` for a desktop size.

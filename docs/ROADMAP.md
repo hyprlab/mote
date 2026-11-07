@@ -110,7 +110,7 @@ headless GNOME Remote Desktop signed in over it with
 | 12 | Packaging | Done |
 | 13 | VNC first session | Done |
 | 14 | VNC security | Done |
-| 15 | VNC display | Planned |
+| 15 | VNC display | Done |
 | 16 | VNC clipboard | Planned |
 | 17 | VNC connections | Planned |
 
@@ -722,6 +722,47 @@ headless server stops taking RDP connections once a VNC client leaves.
   quality and compression, and a lossless choice.
 - Open H.264, which wayvnc sends, through the decoders RDP uses.
 - Numbers from the measurement harness for each encoding.
+
+Built:
+
+- The desktop takes the window's size, at the start and as the window
+  changes, where the server says it can change its screens; elsewhere it
+  is scaled to fit. Fullscreen on All Monitors asks for a screen per
+  monitor. A server that passes the change on to someone else to make, as
+  wayvnc does to its compositor, is given time to make it. TigerVNC and
+  GNOME say they can in their first update, neatvnc once a frame shows its
+  layout, so a server is taken to keep its size only after three updates.
+- Continuous updates, where offered, with the server's fences answered:
+  the server sends changes as they happen. Elsewhere the next update is
+  asked for as each one is read.
+- A codec choice of its own for VNC in the editor: Best Available (H.264
+  where the server has it, else Tight with JPEG at quality 8), Lossless
+  (ZRLE first, and Tight without JPEG, which it sends only to a client that
+  names a quality) and Low Bandwidth (JPEG at quality 3, compressed
+  harder).
+- Open H.264, each rectangle with a decoder of its own, from the H.264
+  sources RDP uses.
+
+Measured at 1920x1080 on a private GNOME Remote Desktop's VNC, which sends
+30 frames a second at most, with GStreamer's moving test pattern filling
+the screen (`MOTE_LOG=mote::stats=info`, BUILDING.md):
+
+| Codec | Data | Decoding per frame, mean and p95 |
+| --- | --- | --- |
+| Best Available (Tight, JPEG) | 3.4 MB/s | 3.0 and 3.6 ms |
+| Lossless (ZRLE) | 9.5 MB/s | 5.4 and 6.6 ms |
+| Low Bandwidth | 1.6 MB/s | 3.8 and 6.5 ms |
+
+Copying a frame out for the interface took 0.8 ms in each.
+
+Tried: resizing on TigerVNC, wayvnc (headless) and GNOME Remote Desktop;
+two monitors on all three, as screens side by side; continuous updates on
+TigerVNC and wayvnc (GNOME doesn't offer them); and in the app, TigerVNC's
+desktop taking the window's size. H.264 decoding was checked against a
+picture FFmpeg encoded with VA-API, colors and cropping included, but no
+server here sends it: Fedora's wayvnc 0.9.1 and neatvnc 0.9.0 fail to
+start their encoder with FFmpeg 8. Not yet tried: H.264 from a server,
+such as wayvnc on a Raspberry Pi, and Fullscreen on All Monitors in the app.
 
 ### 16. VNC clipboard
 
