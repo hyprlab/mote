@@ -559,7 +559,11 @@ mod tests {
             data.truncate(16);
             let mut compressed = Vec::with_capacity(2048);
             flate2::Compress::new(flate2::Compression::fast(), true)
-                .compress_vec(&noise.bytes(1500), &mut compressed, flate2::FlushCompress::Sync)
+                .compress_vec(
+                    &noise.bytes(1500),
+                    &mut compressed,
+                    flate2::FlushCompress::Sync,
+                )
                 .unwrap();
             data.extend_from_slice(&(compressed.len() as u32).to_be_bytes());
             data.extend(compressed);
