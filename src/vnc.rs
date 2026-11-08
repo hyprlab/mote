@@ -3,6 +3,7 @@
 //! spoken to through [`crate::remote`]. The handshake runs over a stream
 //! the engine holds, so it decides when, if ever, the stream becomes TLS.
 
+mod apple;
 mod clipboard;
 mod decode;
 mod dh;
@@ -102,17 +103,7 @@ async fn drive(
         {
             return Ok(Ending::Closed);
         }
-        match session::run(
-            opened.stream,
-            opened.init,
-            target,
-            events,
-            commands,
-            &mut keys,
-            early.take(),
-        )
-        .await
-        {
+        match session::run(opened, target, events, commands, &mut keys, early.take()).await {
             Err(Failure::Lost(why)) if target.reconnect => {
                 tracing::info!("the connection dropped ({why}); reconnecting");
                 lost = Some((std::time::Instant::now(), std::time::Duration::from_secs(1)));
@@ -435,6 +426,7 @@ mod tests {
                         Ending::Failed(Failure::Protocol(e) | Failure::Lost(e)) => {
                             format!("failed: {e}")
                         }
+                        Ending::Failed(Failure::Rejected) => "rejected".to_owned(),
                         Ending::Failed(_) => "failed".to_owned(),
                     };
                     eprintln!("ended: {text}, after {frames} frames");

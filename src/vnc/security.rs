@@ -9,7 +9,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{mpsc, oneshot};
 
 use super::handshake::{early, read_text};
-use super::{dh, openssl, ra2};
+use super::{apple, dh, openssl, ra2};
 use crate::remote::route::Stream;
 use crate::remote::{
     Event, Failure, Identity, Protection, Security, Target, Trust, Via, fingerprint,
@@ -25,11 +25,12 @@ const VENCRYPT: u8 = 19;
 /// The kinds of security taken, best first. RSA-AES leads, as TigerVNC and
 /// wayvnc both offer it beside VeNCrypt and its key says which server it
 /// is; choosing the same way each time keeps the identity trusted the
-/// same.
-const BEST_FIRST: [u8; 9] = [
+/// same. Apple's SRP is offered by macOS alone, beside its Diffie-Hellman.
+const BEST_FIRST: [u8; 10] = [
     ra2::RA2_256,
     ra2::RA2,
     VENCRYPT,
+    apple::APPLE_SRP,
     TLS,
     ra2::RA2NE_256,
     ra2::RA2NE,
@@ -51,21 +52,25 @@ const SUBTYPES: [u32; 7] = [
     X509_NONE, X509_VNC, X509_PLAIN, TLS_NONE, TLS_VNC, TLS_PLAIN, PLAIN,
 ];
 
-fn protection(kind: u8) -> Protection {
+/// What `kind` makes of a session; `apple` for macOS, which encrypts the
+/// session after its Diffie-Hellman too, though without knowing the server.
+fn protection(kind: u8, apple: bool) -> Protection {
     match kind {
-        ra2::RA2_256 | ra2::RA2 | VENCRYPT => Protection::Verified,
+        ra2::RA2_256 | ra2::RA2 | VENCRYPT | apple::APPLE_SRP => Protection::Verified,
         TLS => Protection::Unverified,
+        dh::APPLE_DH if apple => Protection::Unverified,
         ra2::RA2NE_256 | ra2::RA2NE | dh::APPLE_DH => Protection::PasswordOnly,
         _ => Protection::Unencrypted,
     }
 }
 
-/// The kind to use of those offered, or why none will do.
-pub(super) fn choose(offered: &[u8], allow_unencrypted: bool) -> Result<u8, Failure> {
+/// The kind to use of those offered, or why none will do. `apple` for a
+/// server that greeted as macOS does.
+pub(super) fn choose(offered: &[u8], allow_unencrypted: bool, apple: bool) -> Result<u8, Failure> {
     let usable = |kind: &u8| *kind != TLS || openssl::available();
     let encrypted = |kind: &u8| {
         matches!(
-            protection(*kind),
+            protection(*kind, apple),
             Protection::Verified | Protection::Unverified
         )
     };
@@ -93,21 +98,27 @@ pub(super) struct Secured {
     /// Whether the server reports on the sign-in: always, but for None
     /// before RFB 3.8.
     pub(super) reports: bool,
+    /// For macOS, the key from the sign-in that its session's first key
+    /// comes wrapped in.
+    pub(super) wrap: Option<[u8; 16]>,
 }
 
-/// Run the exchange of `kind`, chosen and sent already.
+/// Run the exchange of `kind`, chosen and sent already, with a server
+/// that is macOS when `apple`.
 pub(super) async fn run(
     kind: u8,
     mut stream: Box<dyn Stream>,
     target: &Target,
     events: &mpsc::Sender<Event>,
     asked: &mut bool,
+    apple: bool,
 ) -> Result<Secured, Failure> {
     let password = target.password.as_str();
     let secured = |stream, reports| Secured {
         stream,
-        protection: protection(kind),
+        protection: protection(kind, apple),
         reports,
+        wrap: None,
     };
     match kind {
         NONE => Ok(secured(stream, false)),
@@ -148,8 +159,21 @@ pub(super) async fn run(
             if target.username.is_empty() || password.is_empty() {
                 return Err(Failure::Refused);
             }
-            dh::sign_in(&mut stream, &target.username, password).await?;
-            Ok(secured(stream, true))
+            let key = dh::sign_in(&mut stream, &target.username, password).await?;
+            Ok(Secured {
+                wrap: apple.then_some(key),
+                ..secured(stream, true)
+            })
+        }
+        apple::APPLE_SRP => {
+            if target.username.is_empty() || password.is_empty() {
+                return Err(Failure::Refused);
+            }
+            let wrap = apple::sign_in(&mut stream, &target.username, password).await?;
+            Ok(Secured {
+                wrap: Some(wrap),
+                ..secured(stream, true)
+            })
         }
         other => Err(Failure::Security(Security::Unsupported(names(&[other])))),
     }
@@ -250,6 +274,7 @@ async fn vencrypt(
         stream,
         protection,
         reports: true,
+        wrap: None,
     })
 }
 
@@ -340,7 +365,8 @@ pub(super) fn names(kinds: &[u8]) -> String {
             18 => "TLS".to_owned(),
             19 => "VeNCrypt".to_owned(),
             20 => "SASL".to_owned(),
-            30 => "Apple".to_owned(),
+            30 | 33 | 36 => "Apple".to_owned(),
+            35 => "Kerberos".to_owned(),
             other => other.to_string(),
         })
         .fold(Vec::<String>::new(), |mut names, name| {
@@ -386,19 +412,29 @@ mod tests {
     #[test]
     fn chooses_encryption_and_goes_without_only_when_allowed() {
         // wayvnc: VeNCrypt and both RSA-AES.
-        assert_eq!(choose(&[19, 129, 5], false).ok(), Some(ra2::RA2_256));
-        assert_eq!(choose(&[19], false).ok(), Some(VENCRYPT));
+        assert_eq!(choose(&[19, 129, 5], false, false).ok(), Some(ra2::RA2_256));
+        assert_eq!(choose(&[19], false, false).ok(), Some(VENCRYPT));
         // VNC Authentication alone, as Linux Mint's server and KRfb offer.
         assert!(matches!(
-            choose(&[2], false),
+            choose(&[2], false, false),
             Err(Failure::Security(Security::Unencrypted))
         ));
-        assert_eq!(choose(&[2], true).ok(), Some(VNC_AUTHENTICATION));
+        assert_eq!(choose(&[2], true, false).ok(), Some(VNC_AUTHENTICATION));
         // A password protected beats one sent as a challenge's answer.
-        assert_eq!(choose(&[2, 30, 6], true).ok(), Some(ra2::RA2NE));
+        assert_eq!(choose(&[2, 30, 6], true, false).ok(), Some(ra2::RA2NE));
         assert!(matches!(
-            choose(&[16, 20], true),
+            choose(&[16, 20], true, false),
             Err(Failure::Security(Security::Unsupported(_)))
         ));
+    }
+
+    #[test]
+    fn takes_apple_srp_from_macos_and_its_diffie_hellman_encrypted() {
+        // What macOS 26 offers.
+        let macos = [30, 33, 36, 2, 35];
+        assert_eq!(choose(&macos, false, true).ok(), Some(apple::APPLE_SRP));
+        assert_eq!(choose(&[30, 2], false, true).ok(), Some(dh::APPLE_DH));
+        // wayvnc's Diffie-Hellman protects the password alone.
+        assert!(choose(&[30], false, false).is_err());
     }
 }

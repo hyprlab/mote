@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use flate2::{Compress, Compression, Decompress, FlushCompress};
 use tokio::sync::{mpsc, oneshot};
 
+use super::apple::pasteboard;
 use super::decode::inflate;
 use crate::rdp::clipboard::formats::{cf_html_from_html, html_from_cf_html};
 use crate::remote::Event;
@@ -74,12 +75,14 @@ pub(super) struct Clipboard {
     /// A request of the server's being gathered: the formats still to
     /// come, and those come.
     gathering: Option<(u32, Vec<(Kind, Content)>)>,
+    /// macOS's clipboard, which takes UTF-8 text in its own message.
+    apple: bool,
     answers_tx: mpsc::UnboundedSender<Answer>,
     pub(super) answers: mpsc::UnboundedReceiver<Answer>,
 }
 
 impl Clipboard {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(apple: bool) -> Self {
         let (answers_tx, answers) = mpsc::unbounded_channel();
         Self {
             server: None,
@@ -89,6 +92,7 @@ impl Clipboard {
             local: Vec::new(),
             settled: false,
             gathering: None,
+            apple,
             answers_tx,
             answers,
         }
@@ -103,6 +107,11 @@ impl Clipboard {
             Ok(text) => text.to_owned(),
             Err(_) => data.iter().map(|&byte| char::from(byte)).collect(),
         };
+        self.copied(text, events);
+    }
+
+    /// Text copied on the server.
+    pub(super) fn copied(&mut self, text: String, events: &mut Vec<Event>) {
         self.held = vec![(Kind::Text, Content::Text(text))];
         self.offered = TEXT;
         events.push(Event::Clipboard(ClipboardEvent::Copied(vec![Kind::Text])));
@@ -238,7 +247,11 @@ impl Clipboard {
     /// The interface read the local clipboard.
     pub(super) fn answered(&mut self, answer: Answer, out: &mut Vec<u8>) {
         if answer.original {
-            if let Some(Content::Text(text)) = answer.content {
+            if let Some(Content::Text(text)) = &answer.content
+                && self.apple
+            {
+                out.extend(pasteboard::message(text));
+            } else if let Some(Content::Text(text)) = answer.content {
                 // Latin-1: what it can't hold becomes a question mark.
                 let bytes: Vec<u8> = text
                     .chars()
@@ -421,7 +434,7 @@ mod tests {
             u32::from_be_bytes(sent[..4].try_into().unwrap()),
             PROVIDE | TEXT
         );
-        let mut ours = Clipboard::new();
+        let mut ours = Clipboard::new(false);
         let mut events = Vec::new();
         ours.provided(TEXT, &sent[4..], &mut events);
         assert!(matches!(
@@ -432,7 +445,7 @@ mod tests {
 
     #[test]
     fn original_cut_text_is_latin_1() {
-        let mut clipboard = Clipboard::new();
+        let mut clipboard = Clipboard::new(false);
         let mut events = Vec::new();
         clipboard.cut_text(&[b'c', 0xE9], &mut events);
         assert!(matches!(

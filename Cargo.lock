@@ -2618,6 +2618,7 @@ dependencies = [
  "nix",
  "oo7",
  "openh264",
+ "pbkdf2 0.12.2",
  "relm4",
  "rsa 0.9.10",
  "russh",

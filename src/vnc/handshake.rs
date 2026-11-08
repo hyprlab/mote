@@ -8,6 +8,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
+use super::apple::{self, Rekeys};
 use super::security::{self, NONE};
 use crate::remote::route::Stream;
 use crate::remote::{Event, Failure, Protection, Target, Unreachable, describe};
@@ -35,6 +36,9 @@ pub(super) struct Opened {
     pub(super) stream: Box<dyn Stream>,
     pub(super) init: ServerInit,
     pub(super) protection: Protection,
+    /// For a macOS session in Apple's records, where the reader puts the
+    /// keys the server changes to.
+    pub(super) rekeys: Option<Rekeys>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -67,7 +71,10 @@ pub(super) async fn run(
         "VNC server: {}, speaking {version:?}",
         String::from_utf8_lossy(&greeting[..11])
     );
+    // macOS keeps its own extensions for a client that greets as it does.
+    let apple = &greeting == b"RFB 003.889\n";
     let sent: &[u8; 12] = match version {
+        _ if apple => b"RFB 003.889\n",
         Version::V3_3 => b"RFB 003.003\n",
         Version::V3_7 => b"RFB 003.007\n",
         Version::V3_8 => b"RFB 003.008\n",
@@ -103,13 +110,16 @@ pub(super) async fn run(
         Some(only) => offered.into_iter().filter(|&kind| kind == only).collect(),
         None => offered,
     };
-    let kind = security::choose(&offered, target.allow_unencrypted)?;
-    if version != Version::V3_3 {
+    let kind = security::choose(&offered, target.allow_unencrypted, apple)?;
+    // Apple's SRP sends its choice with its first message, as macOS closes
+    // the connection on a choice that comes alone.
+    if version != Version::V3_3 && kind != apple::APPLE_SRP {
         stream.write_all(&[kind]).await.map_err(early)?;
         stream.flush().await.map_err(early)?;
     }
-    let secured = security::run(kind, stream, target, events, asked).await?;
+    let secured = security::run(kind, stream, target, events, asked, apple).await?;
     let mut stream = secured.stream;
+    let wrap = secured.wrap;
     // RFB 3.8 reports on None too; the versions before it don't.
     if (secured.reports || (kind == NONE && version == Version::V3_8))
         && read_u32(&mut stream).await? != 0
@@ -127,8 +137,11 @@ pub(super) async fn run(
         secured.protection
     );
 
-    // Shared: anyone else on the desktop stays on it.
-    stream.write_all(&[1]).await.map_err(early)?;
+    // Shared: anyone else on the desktop stays on it. macOS's own viewer
+    // sets two more bits, of no known meaning, before it asks for
+    // encryption.
+    let shared = if wrap.is_some() { 0xc1 } else { 1 };
+    stream.write_all(&[shared]).await.map_err(early)?;
     stream.flush().await.map_err(early)?;
     let width = read_u16(&mut stream).await?;
     let height = read_u16(&mut stream).await?;
@@ -139,11 +152,20 @@ pub(super) async fn run(
     if width == 0 || height == 0 || width > MAX_SIDE || height > MAX_SIDE {
         return Err(Failure::Protocol(format!("a desktop of {width}x{height}")));
     }
+    // macOS puts some bytes of its own before the name, ending in zeros.
+    let name = name.rsplit('\0').next().unwrap_or_default();
     tracing::info!("in “{name}”, {width}x{height}");
+    let mut rekeys = None;
+    if let Some(wrap) = wrap {
+        let (records, keys) = apple::start(stream, wrap).await?;
+        stream = Box::new(records);
+        rekeys = Some(keys);
+    }
     Ok(Opened {
         stream,
         init: ServerInit { width, height },
         protection: secured.protection,
+        rekeys,
     })
 }
 

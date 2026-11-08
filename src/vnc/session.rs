@@ -11,10 +11,11 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWriteExt, ReadBuf, WriteHalf};
 use tokio::sync::mpsc;
 
+use super::apple::pasteboard;
 use super::clipboard::Clipboard;
 use super::decode::Desktop;
 use super::h264::Contexts;
-use super::handshake::{MAX_SIDE, ServerInit};
+use super::handshake::{MAX_SIDE, Opened};
 use super::input::Keys;
 use super::reader::{self, Note, Screen, encoding};
 use crate::connection::VncCodec;
@@ -182,14 +183,20 @@ struct Live<'a> {
 }
 
 pub(super) async fn run(
-    stream: Box<dyn Stream>,
-    init: ServerInit,
+    opened: Opened,
     target: &Target,
     events: &mpsc::Sender<Event>,
     commands: &mut mpsc::UnboundedReceiver<Command>,
     keys: &mut Keys,
     early: Option<ClipboardCommand>,
 ) -> Result<Ending, Failure> {
+    let Opened {
+        stream,
+        init,
+        rekeys,
+        ..
+    } = opened;
+    let apple = rekeys.is_some();
     let (read, write) = tokio::io::split(stream);
     let desktop = Arc::new(Mutex::new(Desktop::new(init.width, init.height)));
     let (notes_tx, mut notes) = mpsc::channel(16);
@@ -207,6 +214,7 @@ pub(super) async fn run(
         desktop.clone(),
         notes_tx,
         h264,
+        rekeys,
     )));
     keys.connected();
     let mut live = Live {
@@ -228,7 +236,7 @@ pub(super) async fn run(
         received,
         counted: 0,
         stats: crate::stats::Stats::new("engine"),
-        clipboard: target.clipboard.then(Clipboard::new),
+        clipboard: target.clipboard.then(|| Clipboard::new(apple)),
     };
 
     let mut hello = Vec::with_capacity(128);
@@ -240,6 +248,9 @@ pub(super) async fn run(
         hello.extend_from_slice(&kind.to_be_bytes());
     }
     request(&mut hello, false, init.width, init.height);
+    if apple && target.clipboard {
+        hello.extend_from_slice(&pasteboard::WATCH);
+    }
     live.send(&hello).await?;
     let connected = Event::Connected {
         width: init.width,
@@ -433,6 +444,22 @@ impl Live<'_> {
                     clipboard.extended(&data, &mut out, &mut events);
                 }
                 self.send(&out).await?;
+                for event in events {
+                    self.tell(event).await?;
+                }
+                None
+            }
+            Note::AppleClipboardChanged => {
+                if self.clipboard.is_some() {
+                    self.send(&pasteboard::FETCH).await?;
+                }
+                None
+            }
+            Note::AppleClipboard(text) => {
+                let mut events = Vec::new();
+                if let Some(clipboard) = &mut self.clipboard {
+                    clipboard.copied(text, &mut events);
+                }
                 for event in events {
                     self.tell(event).await?;
                 }

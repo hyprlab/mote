@@ -11,6 +11,7 @@ use flate2::Decompress;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::sync::mpsc;
 
+use super::apple::{self, Rekeys, pasteboard};
 use super::decode::{self, Bad, Desktop, Filter};
 use super::h264::Contexts;
 use super::handshake::MAX_SIDE;
@@ -89,6 +90,10 @@ pub(super) enum Note {
     CutText(Vec<u8>),
     /// An extended clipboard message, past its length.
     ExtendedClipboard(Vec<u8>),
+    /// macOS's clipboard has changed, and can be asked for.
+    AppleClipboardChanged,
+    /// The text in macOS's clipboard.
+    AppleClipboard(String),
     /// The desktop has a new size, and holds nothing yet.
     Resized(u16, u16),
     /// The server's pointer; none for a hidden one.
@@ -128,6 +133,7 @@ pub(super) async fn run<R: AsyncRead + Unpin>(
     desktop: Arc<Mutex<Desktop>>,
     notes: mpsc::Sender<Note>,
     h264: Option<Contexts>,
+    rekeys: Option<Rekeys>,
 ) {
     let mut reader = Reader {
         read: BufReader::with_capacity(64 << 10, read),
@@ -137,6 +143,7 @@ pub(super) async fn run<R: AsyncRead + Unpin>(
         zrle: Decompress::new(true),
         tight: std::array::from_fn(|_| Decompress::new(true)),
         h264,
+        rekeys,
         spent: Duration::ZERO,
     };
     let ending = match reader.serve().await {
@@ -162,6 +169,8 @@ struct Reader<R> {
     tight: [Decompress; 4],
     /// H.264's decoders, when the system has one and it was asked for.
     h264: Option<Contexts>,
+    /// Where a new key goes, in a macOS session in Apple's records.
+    rekeys: Option<Rekeys>,
     /// Time spent decoding this update so far.
     spent: Duration,
 }
@@ -220,6 +229,32 @@ impl<R: AsyncRead + Unpin> Reader<R> {
                 }
                 let payload = self.bytes(length.into()).await?;
                 self.note(Note::Fence { flags, payload }).await
+            }
+            // macOS's status: a heartbeat, or news of the clipboard or the
+            // signed-in user.
+            apple::MISC_STATUS if self.rekeys.is_some() => {
+                self.skip(1).await?;
+                let length = self.read.read_u16().await?;
+                let status = self.bytes(length.into()).await?;
+                if status.get(2..4) == Some(&pasteboard::CHANGED.to_be_bytes()) {
+                    self.note(Note::AppleClipboardChanged).await?;
+                }
+                Ok(())
+            }
+            // macOS's clipboard, as asked for: its size inflated, and
+            // compressed.
+            pasteboard::CLIPBOARD_SEND if self.rekeys.is_some() => {
+                self.skip(7).await?;
+                let size = self.read.read_u32().await? as usize;
+                let length = self.read.read_u32().await? as usize;
+                if size > MAX_CUT_TEXT || length > MAX_CUT_TEXT {
+                    return Err(Stop::Bad(format!("{size} bytes of clipboard")));
+                }
+                let compressed = self.bytes(length).await?;
+                match pasteboard::text(&compressed, size) {
+                    Some(text) => self.note(Note::AppleClipboard(text)).await,
+                    None => Ok(()),
+                }
             }
             other => Err(Stop::Bad(format!("message type {other}"))),
         }
@@ -315,6 +350,14 @@ impl<R: AsyncRead + Unpin> Reader<R> {
             }
             encoding::EXTENDED_MOUSE_BUTTONS => {
                 self.note(Note::ExtendedButtons).await?;
+                return Ok(false);
+            }
+            apple::ENCRYPTION_INFO if self.rekeys.is_some() => {
+                let mut rekey = [0; 36];
+                self.read.read_exact(&mut rekey).await?;
+                if let Some(rekeys) = &self.rekeys {
+                    rekeys.lock().expect("rekeys").push(rekey);
+                }
                 return Ok(false);
             }
             _ if !self
@@ -654,7 +697,7 @@ mod tests {
         let desktop = Arc::new(Mutex::new(Desktop::new(64, 48)));
         let (notes, mut heard) = mpsc::channel(16);
         let listening = tokio::spawn(async move { while heard.recv().await.is_some() {} });
-        run(std::io::Cursor::new(data), desktop, notes, None).await;
+        run(std::io::Cursor::new(data), desktop, notes, None, None).await;
         listening.await.unwrap();
     }
 

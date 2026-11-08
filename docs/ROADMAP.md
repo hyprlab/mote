@@ -27,6 +27,10 @@ Every VNC section, from 13 on, is checked against:
   RSA-AES, Open H.264.
 - **KRfb** on KDE Plasma 6, and **x11vnc**, both built on libvncserver.
 
+From section 18, VNC is also checked against **macOS Screen Sharing**
+(macOS 26), which greets as RFB 3.889 and offers Apple's Diffie-Hellman
+(type 30), Apple's SRP (33 and 36), Kerberos (35) and VNC Authentication.
+
 ## Protocol engine
 
 [IronRDP](https://github.com/Devolutions/IronRDP), the RDP stack Devolutions
@@ -113,6 +117,7 @@ headless GNOME Remote Desktop signed in over it with
 | 15 | VNC display | Done |
 | 16 | VNC clipboard | Done |
 | 17 | VNC connections | Done |
+| 18 | macOS Screen Sharing | In progress |
 
 ### 1. Foundation
 
@@ -860,6 +865,51 @@ What Remmina's VNC plugin offers, and where Mote has it:
 | SSH tunnel, pre and post commands | The same as for RDP |
 | Send Ctrl+Alt+Del, keyboard grab | The same as for RDP |
 | Listen for a connection (VNCI), repeater, chat | Not planned |
+
+### 18. macOS Screen Sharing
+
+- Apple's SRP sign-in, which verifies the server, and the encryption macOS
+  puts around the whole session after it, so a Mac connects encrypted
+  without Allow Unencrypted.
+- Apple's clipboard, which carries UTF-8 text in either direction.
+- Still to come: the display layout macOS sends for HiDPI and its several
+  displays, its pointer shapes, and its quality encodings. High
+  Performance mode (HEVC over UDP, with sound) is a later section, if one.
+
+Built:
+
+- Apple's SRP (type 33): the user name under the server's RSA key, then
+  SRP-6a over RFC 3526's 4096-bit group with SHA-512, the password
+  stretched with PBKDF2 for as many rounds as the server asks (116,279 on
+  macOS 26). The server's proof is checked, so it verifies the server
+  without a key to trust; a group other than RFC 3526's is turned away.
+  It is taken before every type but RSA-AES and VeNCrypt, which macOS
+  doesn't offer.
+- Apple's records, after the sign-in: the viewer's description and a
+  request for encryption, then a key from the server wrapped in the one
+  the sign-in agreed on. From there each message goes in a record of its
+  own, in AES-128 CBC chained for the whole session, ending in a SHA-1
+  of a sequence number and its contents. A later key from the server is
+  taken the same way. Apple's Diffie-Hellman (type 30) gets the records
+  too when the server is macOS, so it counts as encrypted without the
+  server being verified, as anonymous TLS does.
+- The clipboard: macOS is told to watch its own, says when it changes,
+  and sends it as an archive of flavors, of which the UTF-8, UTF-16 or
+  older Mac text is taken; text copied here goes back the same way, as
+  macOS puts the original cut text where only older apps look.
+
+Apple publishes none of this. The layouts come from iShareScreen's
+description of the protocol (`docs/apple_vnc_rfc.md` in
+Chapoly1305/iShareScreen), and were checked against macOS 26 with a
+prototype first. Two things macOS requires that the description leaves
+out: the choice of type 33 has to come in the same packet as its first
+message, and the server's challenge has a header of 10 bytes, not 9.
+
+Tried against a MacBook on macOS 26, from the live test: the sign-in with
+types 33 and 30, a wrong password, which ends as refused, and the session
+in records with a full update read through them. Not yet tried: the
+clipboard both ways, a key changed during a session, and a Mac whose
+display is awake, as this one's was asleep and sent black.
 
 ## Remmina parity
 

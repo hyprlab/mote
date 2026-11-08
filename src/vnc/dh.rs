@@ -1,7 +1,8 @@
 //! Apple's Diffie-Hellman sign-in (security type 30), which wayvnc offers
 //! when told to relax its encryption, as macOS does: the user name and
 //! password go encrypted with a key both sides agree on, and the session
-//! after them goes as it is.
+//! after them goes as it is, but for macOS, which encrypts it after with a
+//! key wrapped in that one.
 
 use md5::{Digest, Md5};
 use rsa::BigUint;
@@ -21,11 +22,13 @@ pub(super) const APPLE_DH: u8 = 30;
 /// Each of the user name and the password takes this many bytes.
 const FIELD: usize = 64;
 
+/// Sign in, and return the key agreed on, which macOS wraps the session's
+/// first key in.
 pub(super) async fn sign_in(
     stream: &mut Box<dyn Stream>,
     username: &str,
     password: &str,
-) -> Result<(), Failure> {
+) -> Result<[u8; 16], Failure> {
     let generator = stream.read_u16().await.map_err(early)?;
     let size = usize::from(stream.read_u16().await.map_err(early)?);
     if !(16..=1024).contains(&size) {
@@ -66,7 +69,8 @@ pub(super) async fn sign_in(
     let mut message = credentials.to_vec();
     message.extend(fixed(&ours.to_bytes_be(), size));
     stream.write_all(&message).await.map_err(early)?;
-    stream.flush().await.map_err(early)
+    stream.flush().await.map_err(early)?;
+    Ok(key.into())
 }
 
 /// A big-endian number in exactly `size` bytes.
