@@ -901,15 +901,17 @@ Built:
 Apple publishes none of this. The layouts come from iShareScreen's
 description of the protocol (`docs/apple_vnc_rfc.md` in
 Chapoly1305/iShareScreen), and were checked against macOS 26 with a
-prototype first. Two things macOS requires that the description leaves
-out: the choice of type 33 has to come in the same packet as its first
-message, and the server's challenge has a header of 10 bytes, not 9.
+prototype first. Things macOS does that the description leaves out: the
+choice of type 33 has to come in the same packet as its first message;
+the server's challenge has a header of 10 bytes, not 9; and a client that
+answers the greeting with 3.889, as Apple's viewer does, is sent a black
+desktop until it describes a display of its own, so Mote answers 3.8, to
+which macOS sends its desktop, encrypted the same way.
 
 Tried against a MacBook on macOS 26, from the live test: the sign-in with
 types 33 and 30, a wrong password, which ends as refused, and the session
-in records with a full update read through them. Not yet tried: the
-clipboard both ways, a key changed during a session, and a Mac whose
-display is awake, as this one's was asleep and sent black.
+in records, its desktop coming at about 11 updates a second. Not yet
+tried: the clipboard both ways, and a key changed during a session.
 
 ## Remmina parity
 

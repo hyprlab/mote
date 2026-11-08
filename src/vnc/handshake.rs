@@ -71,10 +71,12 @@ pub(super) async fn run(
         "VNC server: {}, speaking {version:?}",
         String::from_utf8_lossy(&greeting[..11])
     );
-    // macOS keeps its own extensions for a client that greets as it does.
+    // macOS greets as 3.889. Its sign-in and encryption work the same for
+    // a client that answers 3.8, and only then does it send the desktop
+    // itself: to a client that answers 3.889, as its own viewer does, it
+    // sends black until told of a display of the client's.
     let apple = &greeting == b"RFB 003.889\n";
     let sent: &[u8; 12] = match version {
-        _ if apple => b"RFB 003.889\n",
         Version::V3_3 => b"RFB 003.003\n",
         Version::V3_7 => b"RFB 003.007\n",
         Version::V3_8 => b"RFB 003.008\n",
