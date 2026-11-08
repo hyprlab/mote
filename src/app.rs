@@ -720,13 +720,7 @@ impl AppModel {
             return;
         }
         self.adding = Some(found.address);
-        let conn = Connection {
-            host: found.host,
-            port: found.address.port(),
-            name: found.name,
-            protocol: found.protocol,
-            ..self.settings.new_connection()
-        };
+        let conn = found.connection(self.settings.new_connection());
         self.open_editor(conn, true, sender, root);
     }
 

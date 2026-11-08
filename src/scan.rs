@@ -19,7 +19,7 @@ use tokio::task::JoinSet;
 
 pub(crate) use network::{Network, NetworkError};
 
-use crate::connection::{DEFAULT_PORT, Protocol, VNC_PORT};
+use crate::connection::{Connection, DEFAULT_PORT, Protocol, VNC_PORT};
 use crate::rdp::server::{Server, certificate_name};
 
 /// RDP's own port and the one GNOME's Desktop Sharing moves to when Remote
@@ -64,8 +64,8 @@ pub(crate) enum Event {
 #[derive(Debug, Clone)]
 pub(crate) struct Found {
     pub(crate) address: SocketAddrV4,
-    /// What a connection to it should use: a name that resolves back to the
-    /// address, which outlasts a lease from DHCP, or else the address.
+    /// A name that resolves back to the address, which outlasts a lease
+    /// from DHCP, or else the address.
     pub(crate) host: String,
     /// What it calls itself where `host` has to be the address; often empty.
     pub(crate) name: String,
@@ -73,6 +73,34 @@ pub(crate) struct Found {
     pub(crate) protocol: Protocol,
     /// A connection reaches this already.
     pub(crate) saved: bool,
+}
+
+impl Found {
+    /// `base` made a connection to this computer: its address first, which
+    /// answered the scan, and the name that resolves to it as another
+    /// address, for when a lease from DHCP moves it. Named as the scan
+    /// shows it.
+    pub(crate) fn connection(&self, base: Connection) -> Connection {
+        let ip = self.address.ip().to_string();
+        let resolves = self.host != ip;
+        let name = if self.name.is_empty() && resolves {
+            self.host.clone()
+        } else {
+            self.name.clone()
+        };
+        Connection {
+            host: ip,
+            port: self.address.port(),
+            other_addresses: if resolves {
+                vec![self.host.clone()]
+            } else {
+                Vec::new()
+            },
+            name,
+            protocol: self.protocol,
+            ..base
+        }
+    }
 }
 
 /// The longest a scan of `network` can take, with nothing there to answer.
@@ -221,6 +249,27 @@ mod tests {
         assert_eq!(seconds("10.0.1.0/24"), 11);
         assert_eq!(seconds("10.0.0.0/20"), 191);
         assert_eq!(seconds("10.0.0.0/16"), 3071);
+    }
+
+    #[test]
+    fn an_added_computer_is_reached_by_its_address_then_its_name() {
+        let found = |host: &str, name: &str| Found {
+            address: "10.0.1.17:5900".parse().unwrap(),
+            host: host.into(),
+            name: name.into(),
+            server: None,
+            protocol: Protocol::Vnc,
+            saved: false,
+        };
+        let c = found("mint.lan", "").connection(Connection::default());
+        assert_eq!((c.host.as_str(), c.port), ("10.0.1.17", 5900));
+        assert_eq!(c.other_addresses, ["mint.lan"]);
+        assert_eq!((c.name.as_str(), c.protocol), ("mint.lan", Protocol::Vnc));
+        // A name that doesn't resolve back can't be an address.
+        let c = found("10.0.1.17", "mint").connection(Connection::default());
+        assert_eq!(c.host, "10.0.1.17");
+        assert!(c.other_addresses.is_empty());
+        assert_eq!(c.name, "mint");
     }
 
     #[test]
