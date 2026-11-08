@@ -449,7 +449,7 @@ fn connection_row(conn: &Connection, settings: &Settings, open: bool) -> gtk::Li
     text.append(&name);
     // The protocol always, so RDP and VNC rows read alike; the address
     // too unless it is the title already.
-    let protocol = conn.protocol.name();
+    let protocol = conn.kind().name();
     let caption = if settings.show_hosts && !conn.name.trim().is_empty() {
         format!("{protocol} · {}", conn.address())
     } else {

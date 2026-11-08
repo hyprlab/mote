@@ -71,6 +71,8 @@ pub(crate) struct Found {
     pub(crate) name: String,
     pub(crate) server: Option<Server>,
     pub(crate) protocol: Protocol,
+    /// A Mac, which greets as macOS Screen Sharing does.
+    pub(crate) macos: bool,
     /// A connection reaches this already.
     pub(crate) saved: bool,
 }
@@ -98,6 +100,7 @@ impl Found {
             },
             name,
             protocol: self.protocol,
+            macos: self.macos,
             ..base
         }
     }
@@ -203,6 +206,7 @@ async fn identify(
         name,
         server: der.and_then(Server::from_certificate),
         protocol: protocol(address.port()),
+        macos: answer.macos,
         saved: saved.contains(&address),
     }
 }
@@ -259,6 +263,7 @@ mod tests {
             name: name.into(),
             server: None,
             protocol: Protocol::Vnc,
+            macos: false,
             saved: false,
         };
         let c = found("mint.lan", "").connection(Connection::default());

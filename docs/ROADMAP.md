@@ -905,6 +905,13 @@ Built:
   What the session learns holds for its reconnections. The RSA way's key
   isn't asked about, as macOS shows no fingerprint to check it against,
   so it counts as encrypted without the server being verified.
+- VNC (macOS) in the editor's Protocol row, for a connection to a Mac:
+  it asks for a user name, as a Mac signs in with an account, and leaves
+  out VNC's codecs, which macOS doesn't send, and Resize from Scaling, as
+  a Mac keeps its own size. It is stored as VNC with `macos = true`
+  beside it, so a version of Mote from before reads the connection as
+  VNC rather than failing on the whole file. Scan Network takes a server
+  that greets as RFB 3.889 for a Mac, and adds it as one.
 - The clipboard: macOS is told to watch its own, says when it changes,
   and sends it as an archive of flavors, of which the UTF-8, UTF-16 or
   older Mac text is taken; text copied here goes back the same way, as

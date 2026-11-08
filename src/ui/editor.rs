@@ -9,7 +9,7 @@ use adw::prelude::*;
 use relm4::prelude::*;
 
 use crate::connection::{
-    Connection, Network, Protocol, Quality, Scaling, VncCodec, parse_mac, split_address,
+    Connection, Kind, Network, Protocol, Quality, Scaling, VncCodec, parse_mac, split_address,
 };
 use crate::i18n::i18n;
 use crate::secrets::{self, Password, Secret};
@@ -219,29 +219,18 @@ impl Component for Editor {
             folder_path: Rc::new(RefCell::new(c.folder.clone())),
         };
         folder_row(&rows.folder, &rows.folder_path);
-        let labels: Vec<&str> = Protocol::ALL.iter().map(|p| p.name()).collect();
+        let labels: Vec<&str> = Kind::ALL.iter().map(|k| k.name()).collect();
         rows.protocol.set_title(&i18n("Protocol"));
         rows.protocol
             .set_model(Some(&gtk::StringList::new(&labels)));
         rows.protocol.set_selected(
-            Protocol::ALL
+            Kind::ALL
                 .iter()
-                .position(|p| *p == c.protocol)
+                .position(|k| *k == c.kind())
                 .unwrap_or_default() as u32,
         );
-        let labels: Vec<String> = Scaling::ALL
-            .into_iter()
-            .map(crate::ui::session::scaling_label)
-            .collect();
-        let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
         rows.scaling.set_title(&i18n("Scaling"));
-        rows.scaling.set_model(Some(&gtk::StringList::new(&labels)));
-        rows.scaling.set_selected(
-            Scaling::ALL
-                .iter()
-                .position(|s| *s == c.scaling)
-                .unwrap_or_default() as u32,
-        );
+        set_scalings(&rows.scaling, c.kind(), c.scaling);
         let labels: Vec<String> = Quality::ALL.into_iter().map(quality_label).collect();
         let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
         rows.quality.set_title(&i18n("Codec"));
@@ -457,7 +446,7 @@ impl Component for Editor {
         commands.add(&rows.command_before);
         commands.add(&rows.command_after);
         page.add(&commands);
-        follow_protocol(&rows, c.protocol);
+        follow_protocol(&rows, c.kind());
 
         if !init.is_new {
             for kind in Secret::ALL {
@@ -553,19 +542,18 @@ impl Component for Editor {
                 let r = &self.rows;
                 // A port typed but not yet committed by leaving the field.
                 r.port.update();
+                let kind = selected_kind(&r.protocol);
                 let connection = Connection {
                     name: r.name.text().into(),
-                    protocol: Protocol::ALL
-                        .get(r.protocol.selected() as usize)
-                        .copied()
-                        .unwrap_or_default(),
+                    protocol: kind.protocol(),
+                    macos: kind == Kind::Macos,
                     host: r.host.text().into(),
                     port: r.port.value() as u16,
                     other_addresses: r.others.iter().map(|row| row.text().into()).collect(),
                     group: r.group.group(),
                     username: r.username.text().into(),
                     domain: r.domain.text().into(),
-                    scaling: Scaling::ALL
+                    scaling: scalings(kind)
                         .get(r.scaling.selected() as usize)
                         .copied()
                         .unwrap_or_default(),
@@ -710,15 +698,48 @@ impl Editor {
     }
 }
 
+fn selected_kind(row: &adw::ComboRow) -> Kind {
+    Kind::ALL
+        .get(row.selected() as usize)
+        .copied()
+        .unwrap_or(Kind::Rdp)
+}
+
+/// The ways the remote desktop can meet the window. A Mac keeps its own
+/// size.
+fn scalings(kind: Kind) -> Vec<Scaling> {
+    Scaling::ALL
+        .into_iter()
+        .filter(|s| kind != Kind::Macos || *s != Scaling::Resize)
+        .collect()
+}
+
+/// Offer `kind`'s ways of scaling, with `scaling` chosen where it is one
+/// of them, and otherwise the first.
+fn set_scalings(row: &adw::ComboRow, kind: Kind, scaling: Scaling) {
+    let offered = scalings(kind);
+    let labels: Vec<String> = offered
+        .iter()
+        .map(|s| crate::ui::session::scaling_label(*s))
+        .collect();
+    let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
+    row.set_model(Some(&gtk::StringList::new(&labels)));
+    row.set_selected(
+        offered
+            .iter()
+            .position(|s| *s == scaling)
+            .unwrap_or_default() as u32,
+    );
+}
+
 /// Show only what applies to the protocol chosen, and move the port to
 /// the new protocol's own while it is still the old one's. VNC takes no
 /// domain, none of RDP's codecs or gateway, and shares the clipboard's
-/// text alone. Only VNC can go without encryption.
-fn follow_protocol(rows: &Rows, protocol: Protocol) {
-    let vnc_only = [
-        rows.allow_unencrypted.clone().upcast::<gtk::Widget>(),
-        rows.vnc_codec.clone().upcast(),
-    ];
+/// text alone. Only VNC can go without encryption. A Mac takes none of
+/// VNC's codecs, which it doesn't send, and keeps its own size.
+fn follow_protocol(rows: &Rows, kind: Kind) {
+    let vnc_codec = rows.vnc_codec.clone();
+    let allow_unencrypted = rows.allow_unencrypted.clone();
     let rdp_only: Vec<gtk::Widget> = vec![
         rows.domain.clone().upcast(),
         rows.quality.clone().upcast(),
@@ -730,7 +751,8 @@ fn follow_protocol(rows: &Rows, protocol: Protocol) {
         rows.folder.clone().upcast(),
     ];
     let clipboard = rows.clipboard.clone();
-    let show = move |protocol: Protocol| {
+    let show = move |kind: Kind| {
+        let protocol = kind.protocol();
         clipboard.set_subtitle(&match protocol {
             Protocol::Rdp => i18n("Text only with KRdp; xrdp leaves out folders"),
             Protocol::Vnc => i18n("Text only"),
@@ -738,22 +760,24 @@ fn follow_protocol(rows: &Rows, protocol: Protocol) {
         for row in &rdp_only {
             row.set_visible(protocol == Protocol::Rdp);
         }
-        for row in &vnc_only {
-            row.set_visible(protocol == Protocol::Vnc);
-        }
+        allow_unencrypted.set_visible(protocol == Protocol::Vnc);
+        vnc_codec.set_visible(kind == Kind::Vnc);
     };
-    show(protocol);
-    let (port, last) = (rows.port.clone(), Cell::new(protocol));
+    show(kind);
+    let (port, scaling, last) = (rows.port.clone(), rows.scaling.clone(), Cell::new(kind));
     rows.protocol.connect_selected_notify(move |row| {
-        let protocol = Protocol::ALL
-            .get(row.selected() as usize)
+        let kind = selected_kind(row);
+        if port.value() as u16 == last.get().protocol().port() {
+            port.set_value(kind.protocol().port().into());
+        }
+        // The scaling chosen, kept where the new protocol offers it.
+        let chosen = scalings(last.get())
+            .get(scaling.selected() as usize)
             .copied()
             .unwrap_or_default();
-        if port.value() as u16 == last.get().port() {
-            port.set_value(protocol.port().into());
-        }
-        last.set(protocol);
-        show(protocol);
+        set_scalings(&scaling, kind, chosen);
+        last.set(kind);
+        show(kind);
     });
 }
 

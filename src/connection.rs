@@ -26,6 +26,12 @@ pub(crate) struct Connection {
     pub(crate) picture: String,
     pub(crate) group: String,
     pub(crate) protocol: Protocol,
+    /// A VNC connection to a Mac, which signs in with an account and is
+    /// offered only the settings macOS takes. Kept beside the protocol
+    /// rather than in it, so a version of Mote from before reads the
+    /// connection as VNC instead of failing on the whole file.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) macos: bool,
     pub(crate) host: String,
     pub(crate) port: u16,
     /// More addresses of the same computer, as `host` or `host:port`, to
@@ -107,8 +113,6 @@ pub(crate) enum Protocol {
 }
 
 impl Protocol {
-    pub(crate) const ALL: [Self; 2] = [Self::Rdp, Self::Vnc];
-
     /// The port its servers listen on unless told otherwise.
     pub(crate) fn port(self) -> u16 {
         match self {
@@ -121,6 +125,32 @@ impl Protocol {
         match self {
             Self::Rdp => "RDP",
             Self::Vnc => "VNC",
+        }
+    }
+}
+
+/// What the editor's Protocol row offers: RDP, VNC, or VNC to a Mac.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Rdp,
+    Vnc,
+    Macos,
+}
+
+impl Kind {
+    pub(crate) const ALL: [Self; 3] = [Self::Rdp, Self::Vnc, Self::Macos];
+
+    pub(crate) fn protocol(self) -> Protocol {
+        match self {
+            Self::Rdp => Protocol::Rdp,
+            Self::Vnc | Self::Macos => Protocol::Vnc,
+        }
+    }
+
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Macos => "VNC (macOS)",
+            other => other.protocol().name(),
         }
     }
 }
@@ -266,6 +296,7 @@ impl Default for Connection {
             robot: String::new(),
             picture: String::new(),
             protocol: Protocol::Rdp,
+            macos: false,
             group: String::new(),
             host: String::new(),
             port: DEFAULT_PORT,
@@ -347,9 +378,17 @@ impl Connection {
     }
 
     /// Whether signing in takes a user name: VNC Authentication takes a
-    /// password alone.
+    /// password alone, and a Mac an account.
     pub(crate) fn takes_username(&self) -> bool {
-        self.protocol == Protocol::Rdp
+        self.kind() != Kind::Vnc
+    }
+
+    pub(crate) fn kind(&self) -> Kind {
+        match self.protocol {
+            Protocol::Rdp => Kind::Rdp,
+            Protocol::Vnc if self.macos => Kind::Macos,
+            Protocol::Vnc => Kind::Vnc,
+        }
     }
 
     /// The host, with the port only when it isn't the protocol's own.
@@ -532,6 +571,29 @@ pub(crate) fn split_address(text: &str) -> Option<(String, Option<u16>)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A Mac is VNC with a flag beside it, so a Mote from before macOS
+    /// connections reads it as VNC rather than failing on the whole file.
+    #[test]
+    fn a_mac_is_stored_as_vnc_with_a_flag() {
+        let mut c = Connection {
+            protocol: Protocol::Vnc,
+            macos: true,
+            ..Default::default()
+        };
+        let text = toml::to_string(&c).unwrap();
+        assert!(text.contains("protocol = \"vnc\"") && text.contains("macos = true"));
+        let read: Connection = toml::from_str(&text).unwrap();
+        assert_eq!(read.kind(), Kind::Macos);
+        assert!(read.takes_username());
+        c.macos = false;
+        let text = toml::to_string(&c).unwrap();
+        assert!(!text.contains("macos"));
+        assert_eq!(
+            toml::from_str::<Connection>(&text).unwrap().kind(),
+            Kind::Vnc
+        );
+    }
 
     #[test]
     fn addresses_split_into_host_and_port() {

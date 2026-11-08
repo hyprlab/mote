@@ -47,8 +47,8 @@ impl SignIn {
         remember.set_title(&i18n("Remember Password"));
         remember.set_active(true);
         // VNC has no domains, and most of its servers want a password
-        // alone; a user name, when one does.
-        domain.set_visible(connection.takes_username());
+        // alone; a user name, when one does. A Mac wants an account.
+        domain.set_visible(connection.protocol == crate::connection::Protocol::Rdp);
         let username_first = connection.takes_username();
 
         let group = adw::PreferencesGroup::new();

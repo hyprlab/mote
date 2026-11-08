@@ -41,7 +41,7 @@ pub(super) fn page(conn: &Connection, picture: bool) -> adw::PreferencesPage {
 
     let info = adw::PreferencesGroup::new();
     info.set_title(&i18n("Connection"));
-    info.add(&property(&i18n("Protocol"), conn.protocol.name()));
+    info.add(&property(&i18n("Protocol"), conn.kind().name()));
     info.add(&property(&i18n("Address"), &conn.address()));
     if !conn.other_addresses.is_empty() {
         info.add(&property(

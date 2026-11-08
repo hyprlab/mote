@@ -40,6 +40,9 @@ pub(super) fn shown(
     match ending {
         Ending::Closed => Shown::Nothing,
         Ending::Failed(failure) => match failure {
+            Failure::Refused if connection.macos => Shown::SignIn(i18n(
+                "The user name or password was not accepted. A Mac takes those of an account on it, with Screen Sharing or Remote Management allowed for that account.",
+            )),
             Failure::Refused if connection.protocol == Protocol::Vnc => Shown::SignIn(i18n(
                 "The password was not accepted. VNC servers keep a password of their own, not the login password, and VNC Authentication reads only its first 8 characters.",
             )),

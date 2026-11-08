@@ -34,6 +34,8 @@ const MAX_CONFIRM: usize = 256;
 pub(super) struct Answer {
     /// Its certificate, as DER, if it showed one.
     pub(super) certificate: Option<Vec<u8>>,
+    /// It greeted as macOS Screen Sharing does, as RFB 3.889.
+    pub(super) macos: bool,
 }
 
 /// The answer of the server at `address`, or `None` when nothing there
@@ -49,9 +51,10 @@ pub(super) async fn probe(address: SocketAddrV4) -> Option<Answer> {
             .await
             .ok()?
             .ok()?;
-        return greeting
-            .starts_with(b"RFB ")
-            .then_some(Answer { certificate: None });
+        return greeting.starts_with(b"RFB ").then_some(Answer {
+            certificate: None,
+            macos: &greeting == b"RFB 003.889\n",
+        });
     }
     let confirm = timeout(ANSWER_FOR, negotiate(&mut stream)).await.ok()??;
     let certificate = match confirm {
@@ -65,7 +68,10 @@ pub(super) async fn probe(address: SocketAddrV4) -> Option<Answer> {
         // It still speaks RDP, whatever it wouldn't agree to.
         _ => None,
     };
-    Some(Answer { certificate })
+    Some(Answer {
+        certificate,
+        macos: false,
+    })
 }
 
 /// Send a Connection Request, and read the Connection Confirm.
@@ -156,7 +162,11 @@ mod tests {
         let Some(vnc) = greeter(5903, b"RFB 003.008\n").await else {
             return;
         };
-        assert!(probe(vnc).await.is_some_and(|a| a.certificate.is_none()));
+        assert!(
+            probe(vnc)
+                .await
+                .is_some_and(|a| a.certificate.is_none() && !a.macos)
+        );
         if let Some(other) = greeter(5902, b"SSH-2.0-OpenSSH\r\n").await {
             assert!(probe(other).await.is_none());
         }

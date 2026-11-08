@@ -656,6 +656,15 @@ msgstr "Captures d’écran"
 msgid "Could Not Connect"
 msgstr "Connexion impossible"
 
+#, fuzzy
+msgid ""
+"The user name or password was not accepted. A Mac takes those of an account "
+"on it, with Screen Sharing or Remote Management allowed for that account."
+msgstr ""
+"Le nom d’utilisateur ou le mot de passe n’a pas été accepté. GNOME Remote "
+"Desktop utilise ceux définis dans ses paramètres de bureau à distance, et "
+"non le mot de passe de session."
+
 msgid ""
 "The password was not accepted. VNC servers keep a password of their own, not "
 "the login password, and VNC Authentication reads only its first 8 characters."

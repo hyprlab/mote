@@ -9,7 +9,7 @@ use adw::prelude::*;
 use relm4::prelude::*;
 use tokio::sync::oneshot;
 
-use crate::connection::Protocol;
+use crate::connection::{Kind, Protocol};
 use crate::i18n::{i18n, i18n_f};
 use crate::rdp::server::Server;
 use crate::scan::{self, Event, Found, Network, NetworkError};
@@ -534,7 +534,8 @@ fn title(found: &Found) -> String {
 }
 
 /// The address, unless the title is that already; VNC, which is less
-/// usual; and the server, if its certificate says which.
+/// usual, and whether it is a Mac's; and the server, if its certificate
+/// says which.
 fn subtitle(found: &Found) -> String {
     let address = found.address;
     let at = if address.port() == found.protocol.port() {
@@ -544,7 +545,10 @@ fn subtitle(found: &Found) -> String {
     };
     let parts = [
         (title(found) != at).then_some(at),
-        (found.protocol == Protocol::Vnc).then(|| Protocol::Vnc.name().to_owned()),
+        (found.protocol == Protocol::Vnc).then(|| {
+            let kind = if found.macos { Kind::Macos } else { Kind::Vnc };
+            kind.name().to_owned()
+        }),
         found.server.map(server_name),
     ];
     let parts: Vec<String> = parts.into_iter().flatten().collect();
@@ -572,6 +576,7 @@ mod tests {
             name: name.into(),
             server,
             protocol: crate::scan::protocol(address.parse::<SocketAddrV4>().unwrap().port()),
+            macos: false,
             saved: false,
         }
     }
@@ -597,5 +602,11 @@ mod tests {
         assert_eq!(subtitle(&vnc), "10.0.1.17 · VNC");
         let display = found("10.0.1.17:5901", "10.0.1.17", "", None);
         assert_eq!(subtitle(&display), "10.0.1.17:5901 · VNC");
+        let mac = Found {
+            macos: true,
+            ..found("10.0.1.45:5900", "kepler.lan", "", None)
+        };
+        assert_eq!(subtitle(&mac), "10.0.1.45 · VNC (macOS)");
+        assert_eq!(mac.connection(Default::default()).kind(), Kind::Macos);
     }
 }
