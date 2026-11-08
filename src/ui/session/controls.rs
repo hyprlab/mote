@@ -42,6 +42,9 @@ pub(super) fn keys(name: &str) -> Option<Vec<u16>> {
 /// The session menu. Detached, it offers the way back.
 pub(super) fn menu(detached: bool) -> gio::Menu {
     let menu = gio::Menu::new();
+    let about = gio::Menu::new();
+    about.append(Some(&i18n("Connection Info")), Some("session.info"));
+    menu.append_section(None, &about);
     let place = gio::Menu::new();
     place.append(
         Some(&if detached {
@@ -88,6 +91,15 @@ pub(super) fn menu(detached: bool) -> gio::Menu {
     input.append_submenu(Some(&i18n("Send Keys")), &send);
     input.append(Some(&i18n("Take Screenshot")), Some("session.screenshot"));
     menu.append_section(None, &input);
+
+    let quit = gio::Menu::new();
+    let item = gio::MenuItem::new(
+        Some(&i18n_f("Quit {name}", &[("name", &crate::APP_NAME)])),
+        Some("app.quit"),
+    );
+    item.set_attribute_value("accel", Some(&"<Control>q".to_variant()));
+    quit.append_item(&item);
+    menu.append_section(None, &quit);
     menu
 }
 
@@ -158,6 +170,7 @@ pub(super) fn install_actions(
         ),
         ("move", || SessionInput::ToggleDetached),
         ("screenshot", || SessionInput::Screenshot),
+        ("info", || SessionInput::ShowInfo),
         ("all-monitors", || SessionInput::AllMonitors),
     ] {
         let action = gio::SimpleAction::new(name, None);

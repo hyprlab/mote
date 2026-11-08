@@ -623,6 +623,10 @@ msgstr "Exécution de la commande avant la connexion…"
 msgid "Connecting to {name}…"
 msgstr "Connexion à {name}…"
 
+#, fuzzy
+msgid "Connection Info"
+msgstr "Menu de la connexion"
+
 msgid "Return to Main Window"
 msgstr "Retourner à la fenêtre principale"
 
@@ -649,6 +653,10 @@ msgstr "Envoyer des touches"
 
 msgid "Take Screenshot"
 msgstr "Prendre une capture d’écran"
+
+#, fuzzy
+msgid "Quit {name}"
+msgstr "À propos de {name}"
 
 msgid "Screenshots"
 msgstr "Captures d’écran"
@@ -914,6 +922,63 @@ msgstr "Redémarrez ensuite l’ordinateur, puis reconnectez-vous."
 
 msgid "Copy"
 msgstr "Copier"
+
+msgid "SSH tunnel through {host}"
+msgstr ""
+
+#, fuzzy
+msgid "RD Gateway at {host}"
+msgstr "Passerelle RD"
+
+msgid "Direct"
+msgstr ""
+
+msgid "Route"
+msgstr ""
+
+#, fuzzy
+msgid "Desktop Name"
+msgstr "Bureau de {name}"
+
+msgid "Security"
+msgstr ""
+
+#, fuzzy
+msgid "Encryption"
+msgstr "Connexion"
+
+msgid "Encrypted, computer verified"
+msgstr ""
+
+msgid "Encrypted, computer not verified"
+msgstr ""
+
+#, fuzzy
+msgid "Password only"
+msgstr "Mot de passe"
+
+#, fuzzy
+msgid "Desktop Size"
+msgstr "Fichiers de bureau à distance"
+
+msgid "Frame Rate"
+msgstr ""
+
+msgid "{rate} fps"
+msgstr ""
+
+msgid "Data Rate"
+msgstr ""
+
+msgid "{size}/s"
+msgstr ""
+
+msgid "Data Received"
+msgstr ""
+
+#, fuzzy
+msgid "Connected For"
+msgstr "Connecté"
 
 msgid "English (US)"
 msgstr "Anglais (États-Unis)"

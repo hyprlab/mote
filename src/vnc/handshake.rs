@@ -39,6 +39,9 @@ pub(super) struct Opened {
     /// For a macOS session in Apple's records, where the reader puts the
     /// keys the server changes to.
     pub(super) rekeys: Option<Rekeys>,
+    /// How it signed in, and the server's name for its desktop.
+    pub(super) security: String,
+    pub(super) desktop: String,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -133,6 +136,7 @@ pub(super) async fn run(
     let secured = security::run(kind, stream, target, events, asked, way).await?;
     let mut stream = secured.stream;
     let wrap = secured.wrap;
+    let mut security = secured.method.to_owned();
     // RFB 3.8 reports on None too; the versions before it don't.
     if (secured.reports || (kind == NONE && version == Version::V3_8))
         && read_u32(&mut stream).await? != 0
@@ -173,6 +177,7 @@ pub(super) async fn run(
         let (records, keys) = apple::start(stream, wrap)
             .await
             .inspect_err(|_| ways.no_records())?;
+        security.push_str(" + AES-128");
         stream = Box::new(records);
         rekeys = Some(keys);
     }
@@ -181,6 +186,8 @@ pub(super) async fn run(
         init: ServerInit { width, height },
         protection: secured.protection,
         rekeys,
+        security,
+        desktop: name.to_owned(),
     })
 }
 

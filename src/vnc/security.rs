@@ -97,6 +97,26 @@ pub(super) struct Secured {
     /// For macOS, the key from the sign-in that its session's first key
     /// comes wrapped in.
     pub(super) wrap: Option<[u8; 16]>,
+    /// The kind as its servers name it, for the session's details.
+    pub(super) method: &'static str,
+}
+
+/// `kind` as its servers name it; VeNCrypt's subtypes are named apart.
+fn method(kind: u8, way: Option<Way>) -> &'static str {
+    match kind {
+        NONE => "None",
+        VNC_AUTHENTICATION => "VNC Authentication",
+        TLS => "TLS",
+        VENCRYPT => "VeNCrypt",
+        ra2::RA2 => "RA2",
+        ra2::RA2_256 => "RA2_256",
+        ra2::RA2NE => "RA2ne",
+        ra2::RA2NE_256 => "RA2ne_256",
+        dh::APPLE_DH => "Apple Diffie-Hellman",
+        apple::APPLE_RSA if way == Some(Way::Srp) => "Apple SRP",
+        apple::APPLE_RSA => "Apple RSA",
+        _ => "",
+    }
 }
 
 /// Run the exchange of `kind`, chosen and sent already, the `way` into a
@@ -115,6 +135,7 @@ pub(super) async fn run(
         protection: way.map_or(protection(kind), Way::protection),
         reports,
         wrap: None,
+        method: method(kind, way),
     };
     match kind {
         NONE => Ok(secured(stream, false)),
@@ -138,6 +159,10 @@ pub(super) async fn run(
             send(&mut stream, &[chosen]).await?;
             if chosen == VNC_AUTHENTICATION {
                 vnc_authentication(&mut stream, password).await?;
+                return Ok(Secured {
+                    method: "TLS + VNC Authentication",
+                    ..secured(stream, true)
+                });
             }
             Ok(secured(stream, true))
         }
@@ -278,6 +303,15 @@ async fn vencrypt(
         protection,
         reports: true,
         wrap: None,
+        method: match subtype {
+            X509_NONE => "VeNCrypt X509None",
+            X509_VNC => "VeNCrypt X509Vnc",
+            X509_PLAIN => "VeNCrypt X509Plain",
+            TLS_NONE => "VeNCrypt TLSNone",
+            TLS_VNC => "VeNCrypt TLSVnc",
+            TLS_PLAIN => "VeNCrypt TLSPlain",
+            _ => "VeNCrypt Plain",
+        },
     })
 }
 

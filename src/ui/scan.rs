@@ -557,7 +557,7 @@ fn subtitle(found: &Found) -> String {
 
 /// A certificate tells GNOME's server from the others, but not its Desktop
 /// Sharing from its Remote Login: both make it the same way.
-fn server_name(server: Server) -> String {
+pub(crate) fn server_name(server: Server) -> String {
     match server {
         Server::GnomeDesktop | Server::GnomeLogin => i18n("GNOME Remote Desktop"),
         Server::Krdp => "KRdp".to_owned(),

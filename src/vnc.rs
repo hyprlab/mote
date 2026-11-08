@@ -97,10 +97,15 @@ async fn drive(
                 _ => return Err(failure),
             },
         };
+        let details = Event::Details {
+            security: opened.security.clone(),
+            desktop: Some(opened.desktop.clone()).filter(|name| !name.trim().is_empty()),
+        };
         if events
             .send(Event::Protection(opened.protection))
             .await
             .is_err()
+            || events.send(details).await.is_err()
         {
             return Ok(Ending::Closed);
         }

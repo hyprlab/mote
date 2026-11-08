@@ -147,9 +147,24 @@ pub(crate) enum Event {
     },
     /// The server was offered H.264 and sends its picture another way.
     NoH264,
+    /// How the session signed in and is kept private, in the protocol's
+    /// own terms (NLA, RA2, Apple SRP), and the name the server gives its
+    /// desktop, where it gives one: for the session's details.
+    Details {
+        security: String,
+        desktop: Option<String>,
+    },
+    /// The codec the picture now comes in, in its own name.
+    Video(String),
+    /// The bytes read from the server so far, every couple of seconds.
+    Received(u64),
     /// The last event of a session.
     Ended(Ending),
 }
+
+/// How often an engine says how much it has read, for the session's
+/// details.
+pub(crate) const RECEIVED_EVERY: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// The whole desktop in BGRX, and the parts of it that changed since the
 /// last frame.

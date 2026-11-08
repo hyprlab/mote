@@ -11,6 +11,7 @@ mod display;
 mod endings;
 mod events;
 mod h264_help;
+mod info;
 pub(crate) mod keyboard;
 mod monitors;
 mod pages;
@@ -114,6 +115,8 @@ pub(crate) struct Session {
     stack: gtk::Stack,
     toasts: adw::ToastOverlay,
     menu: gio::Menu,
+    /// The session's details, shown from its menu.
+    info: info::Info,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,6 +173,10 @@ pub(crate) enum SessionInput {
     /// Send a combination from the Send Keys menu, by its name there.
     SendKeys(String),
     Screenshot,
+    /// Show the session's details.
+    ShowInfo,
+    /// Open the session menu, for the showcase.
+    OpenMenu,
     /// The room for the desktop, or the screen's scale, changed.
     Resized,
     /// Send the size, unless a newer change came since.
@@ -389,6 +396,7 @@ impl Component for Session {
             stack: gtk::Stack::new(),
             toasts: adw::ToastOverlay::new(),
             menu: controls::menu(false),
+            info: info::Info::new(info::Facts::new(&connection, &connection.address())),
             connection,
         };
         controls::install_actions(
@@ -550,6 +558,16 @@ impl Component for Session {
                 }
             }
             SessionInput::Mapped => self.watch_window(root, &sender),
+            SessionInput::OpenMenu => {
+                if let Some(button) = session_menu(root) {
+                    button.popup();
+                }
+            }
+            SessionInput::ShowInfo => {
+                if let Some(button) = session_menu(root) {
+                    self.info.show(&button);
+                }
+            }
             SessionInput::SetScaling(scaling) => {
                 self.scaling = scaling;
                 self.display.set_mode(scaling);
@@ -688,6 +706,7 @@ impl Component for Session {
     /// Closed with its window, or with the app: the session ends here too.
     fn shutdown(&mut self, _: &mut Self::Widgets, _: relm4::Sender<Self::Output>) {
         self.finished();
+        self.info.unparent();
     }
 
     fn update_cmd(

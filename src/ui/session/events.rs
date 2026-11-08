@@ -34,6 +34,7 @@ impl Session {
             Event::Trying(address) => {
                 self.connecting
                     .set_description(Some(&gtk::glib::markup_escape_text(&address)));
+                self.info.facts.borrow_mut().address.clone_from(&address);
                 self.address = address;
             }
             Event::Waking => self.connecting.set_title(&i18n_f(
@@ -49,6 +50,7 @@ impl Session {
             }
             Event::Connected { width, height } => {
                 tracing::info!("connected, {width}×{height}");
+                self.info.facts.borrow_mut().connected(width, height);
                 // A reactivation reports the desktop again; only a new
                 // connection counts.
                 if self.page != Page::Desktop {
@@ -73,6 +75,7 @@ impl Session {
                 }
             }
             Event::Frame(frame) => {
+                self.info.facts.borrow_mut().frame();
                 self.display.show_frame(frame);
                 self.check_size_kept(sender);
                 if let (Some(spread), Some(texture)) = (&self.spread, self.display.texture()) {
@@ -87,7 +90,17 @@ impl Session {
                 }
             }
             Event::Bell => self.display.error_bell(),
-            Event::Protection(protection) => self.tell_protection(protection, sender),
+            Event::Protection(protection) => {
+                self.info.facts.borrow_mut().protection = Some(protection);
+                self.tell_protection(protection, sender);
+            }
+            Event::Details { security, desktop } => {
+                let mut facts = self.info.facts.borrow_mut();
+                facts.security = Some(security);
+                facts.desktop = desktop;
+            }
+            Event::Video(codec) => self.info.facts.borrow_mut().codec = Some(codec),
+            Event::Received(total) => self.info.facts.borrow_mut().received(total),
             Event::Cursor(cursor) => {
                 for display in self.spread.iter().flat_map(|s| s.displays()) {
                     display.set_remote_cursor(cursor.clone());
@@ -102,6 +115,10 @@ impl Session {
             | Event::System(_)
             | Event::Graphics { .. }
             | Event::NoH264) => {
+                if let Event::Server(server) = &event {
+                    self.info.facts.borrow_mut().server =
+                        Some(crate::ui::scan::server_name(*server));
+                }
                 if self.findings.learn(event) && self.h264_warning {
                     let toast =
                         adw::Toast::new(&i18n("The remote computer is not sending H.264 video"));

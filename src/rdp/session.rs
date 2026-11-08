@@ -104,6 +104,9 @@ pub(super) async fn run(
     let mut layout: Option<Vec<super::Monitor>> = None;
     let mut stats = crate::stats::Stats::new("engine");
     let mut received = 0;
+    // All of it, for the session's details.
+    let mut total = 0;
+    let mut report = tokio::time::interval(super::super::remote::RECEIVED_EVERY);
     // Lets go of clipboard locks and transfers the server stopped answering.
     let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
     // What came for the channels while the server reactivated, taken up
@@ -134,6 +137,7 @@ pub(super) async fn run(
                     tracing::debug!("took a FreeRDP-style redirection header");
                 }
                 received += payload.len() as u64;
+                total += payload.len() as u64;
                 stats.count("kB in", received / 1024);
                 received %= 1024;
                 let start = std::time::Instant::now();
@@ -183,6 +187,10 @@ pub(super) async fn run(
                 clipboard.answer(format, content, &mut stage)?
             }
             _ = tick.tick(), if clipboard.on() => clipboard.tick(&mut stage)?,
+            _ = report.tick() => {
+                let _ = events.try_send(Event::Received(total));
+                Vec::new()
+            }
             Some(messages) = audio.packets.recv() => {
                 let frame = stage
                     .encode_dvc_messages(messages)

@@ -249,6 +249,7 @@ async fn attempt(
         _ => Attempt::Failed(failure),
     };
 
+    let by_rdstls = rdstls.is_some();
     if let Some(pdu) = rdstls {
         rdstls::authenticate(&mut tls, &target.username, &target.domain, pdu)
             .await
@@ -262,6 +263,14 @@ async fn attempt(
         .to_owned();
     let server_name = ServerName::new(target.host.clone());
 
+    // Known once the connector is past TLS.
+    let security = if by_rdstls {
+        "TLS + RDSTLS"
+    } else if connector.should_perform_credssp() {
+        "TLS + NLA"
+    } else {
+        "TLS"
+    };
     if connector.should_perform_credssp() {
         credssp(
             &mut connector,
@@ -286,6 +295,11 @@ async fn attempt(
     )
     .await
     .map_err(|e| fail(Failure::from_connector(&e)))?;
+    let details = Event::Details {
+        security: security.to_owned(),
+        desktop: None,
+    };
+    let _ = events.send(details).await;
     Ok((outcome, framed))
 }
 
@@ -378,6 +392,9 @@ fn channels(
     /// offered H.264, whether it sends it.
     struct Pictures {
         codec: Option<Codec1Type>,
+        /// Where the codec in use is told, and the last told.
+        events: mpsc::Sender<Event>,
+        told: Option<&'static str>,
         /// Until the server's first H.264, or until it has had long enough
         /// to send some: when its picture began.
         watch: Option<(Option<std::time::Instant>, mpsc::Sender<Event>)>,
@@ -391,6 +408,26 @@ fn channels(
             if self.codec != Some(update.codec_id) {
                 self.codec = Some(update.codec_id);
                 tracing::info!(target: "mote::stats", "codec {:?}", update.codec_id);
+            }
+            // The picture's own codec is told over the ClearCodec, Alpha
+            // and uncompressed tiles that come beside it for text and
+            // edges, which are told only while nothing else has come.
+            let (name, main) = match update.codec_id {
+                Codec1Type::Avc420 => ("H.264 (AVC420)", true),
+                Codec1Type::Avc444 | Codec1Type::Avc444v2 => ("H.264 (AVC444)", true),
+                Codec1Type::RemoteFx => ("RemoteFX", true),
+                Codec1Type::Planar => ("Planar", true),
+                Codec1Type::ClearCodec => ("ClearCodec", false),
+                Codec1Type::Alpha => ("Alpha", false),
+                Codec1Type::Uncompressed => ("Uncompressed", false),
+            };
+            let tell = match self.told {
+                Some(told) => told != name && main,
+                None => true,
+            };
+            if tell {
+                self.told = Some(name);
+                let _ = self.events.try_send(Event::Video(name.to_owned()));
             }
             let avc = matches!(
                 update.codec_id,
@@ -423,6 +460,8 @@ fn channels(
             });
             let pictures = Pictures {
                 codec: None,
+                events: events.clone(),
+                told: None,
                 watch: h264.is_some().then(|| (None, events.clone())),
             };
             ironrdp_egfx::client::GraphicsPipelineClient::new(Box::new(pictures), h264)

@@ -461,6 +461,9 @@ mod tests {
                 Event::System(system) => eprintln!("system {system:?}"),
                 Event::Graphics { h264 } => eprintln!("graphics, H.264 offered: {h264}"),
                 Event::NoH264 => eprintln!("no H.264"),
+                Event::Details { security, .. } => eprintln!("security {security}"),
+                Event::Video(codec) => eprintln!("codec {codec}"),
+                Event::Received(_) => {}
                 Event::Reconnecting => eprintln!("reconnecting"),
                 Event::Connected { width, height } => {
                     eprintln!("connected {width}x{height}");

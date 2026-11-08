@@ -13,7 +13,8 @@
 //!   to the connection of that name; `detach` and `fullscreen` then do that
 //!   to its session, and `scaling:<resize|fit|actual>` sets its scaling;
 //!   `keys:<name>` sends a combination from its Send Keys menu,
-//!   `screenshot` takes a screenshot, `view-only:<1|0>` sets that, and
+//!   `screenshot` takes a screenshot, `view-only:<1|0>` sets that, `menu`
+//!   and `info` open its menu and its details, and
 //!   `all-monitors` spreads it over every monitor, whose windows are
 //!   captured too, as `<file>-2.png` and on.
 //!   `delay:<seconds>` makes the steps after it wait that long; `bottom`
@@ -89,7 +90,7 @@ impl AppModel {
                 }
                 (
                     name @ ("detach" | "fullscreen" | "scaling" | "keys" | "screenshot"
-                    | "view-only" | "all-monitors"),
+                    | "view-only" | "all-monitors" | "info" | "menu"),
                     argument,
                 ) => {
                     send(AppMsg::ShowcaseSession(format!("{name}:{argument}")));
@@ -135,6 +136,8 @@ impl AppModel {
             Some(("screenshot", _)) => SessionInput::Screenshot,
             Some(("view-only", on)) => SessionInput::SetViewOnly(on != "0"),
             Some(("all-monitors", _)) => SessionInput::AllMonitors,
+            Some(("info", _)) => SessionInput::ShowInfo,
+            Some(("menu", _)) => SessionInput::OpenMenu,
             _ => SessionInput::ToggleFullscreen,
         });
     }

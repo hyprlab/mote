@@ -94,6 +94,8 @@ pub(super) enum Note {
     AppleClipboardChanged,
     /// The text in macOS's clipboard.
     AppleClipboard(String),
+    /// The picture now comes in this encoding.
+    Video(i32),
     /// The desktop has a new size, and holds nothing yet.
     Resized(u16, u16),
     /// The server's pointer; none for a hidden one.
@@ -144,6 +146,7 @@ pub(super) async fn run<R: AsyncRead + Unpin>(
         tight: std::array::from_fn(|_| Decompress::new(true)),
         h264,
         rekeys,
+        video: None,
         spent: Duration::ZERO,
     };
     let ending = match reader.serve().await {
@@ -171,6 +174,8 @@ struct Reader<R> {
     h264: Option<Contexts>,
     /// Where a new key goes, in a macOS session in Apple's records.
     rekeys: Option<Rekeys>,
+    /// The encoding the picture last came in.
+    video: Option<i32>,
     /// Time spent decoding this update so far.
     spent: Duration,
 }
@@ -272,6 +277,18 @@ impl<R: AsyncRead + Unpin> Reader<R> {
             let kind = self.read.read_i32().await?;
             if kind == encoding::LAST_RECT {
                 break;
+            }
+            let picture = [
+                encoding::RAW,
+                encoding::HEXTILE,
+                encoding::ZLIB,
+                encoding::ZRLE,
+                encoding::TIGHT,
+                encoding::OPEN_H264,
+            ];
+            if picture.contains(&kind) && self.video != Some(kind) {
+                self.video = Some(kind);
+                self.note(Note::Video(kind)).await?;
             }
             if self.rectangle(kind, x, y, width, height).await? {
                 damage.push(Rect {

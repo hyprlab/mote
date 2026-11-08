@@ -265,6 +265,7 @@ pub(super) async fn run(
     }
 
     let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+    let mut report = tokio::time::interval(crate::remote::RECEIVED_EVERY);
     loop {
         let event = tokio::select! {
             note = notes.recv() => {
@@ -311,6 +312,9 @@ pub(super) async fn run(
                 }
                 live.send(&out).await?;
                 None
+            }
+            _ = report.tick() => {
+                Some(Event::Received(live.received.load(Ordering::Relaxed)))
             }
             _ = tick.tick() => {
                 if let Some(clipboard) = &mut live.clipboard {
@@ -449,6 +453,17 @@ impl Live<'_> {
                 }
                 None
             }
+            Note::Video(kind) => Some(Event::Video(
+                match kind {
+                    encoding::RAW => "Raw",
+                    encoding::HEXTILE => "Hextile",
+                    encoding::ZLIB => "Zlib",
+                    encoding::ZRLE => "ZRLE",
+                    encoding::TIGHT => "Tight",
+                    _ => "H.264",
+                }
+                .to_owned(),
+            )),
             Note::AppleClipboardChanged => {
                 if self.clipboard.is_some() {
                     self.send(&pasteboard::FETCH).await?;

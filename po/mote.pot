@@ -602,6 +602,9 @@ msgstr ""
 msgid "Connecting to {name}…"
 msgstr ""
 
+msgid "Connection Info"
+msgstr ""
+
 msgid "Return to Main Window"
 msgstr ""
 
@@ -627,6 +630,9 @@ msgid "Send Keys"
 msgstr ""
 
 msgid "Take Screenshot"
+msgstr ""
+
+msgid "Quit {name}"
 msgstr ""
 
 msgid "Screenshots"
@@ -846,6 +852,57 @@ msgid "Then restart the computer, and connect again."
 msgstr ""
 
 msgid "Copy"
+msgstr ""
+
+msgid "SSH tunnel through {host}"
+msgstr ""
+
+msgid "RD Gateway at {host}"
+msgstr ""
+
+msgid "Direct"
+msgstr ""
+
+msgid "Route"
+msgstr ""
+
+msgid "Desktop Name"
+msgstr ""
+
+msgid "Security"
+msgstr ""
+
+msgid "Encryption"
+msgstr ""
+
+msgid "Encrypted, computer verified"
+msgstr ""
+
+msgid "Encrypted, computer not verified"
+msgstr ""
+
+msgid "Password only"
+msgstr ""
+
+msgid "Desktop Size"
+msgstr ""
+
+msgid "Frame Rate"
+msgstr ""
+
+msgid "{rate} fps"
+msgstr ""
+
+msgid "Data Rate"
+msgstr ""
+
+msgid "{size}/s"
+msgstr ""
+
+msgid "Data Received"
+msgstr ""
+
+msgid "Connected For"
 msgstr ""
 
 msgid "English (US)"
