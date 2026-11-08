@@ -4,9 +4,9 @@
 %global debug_package %{nil}
 
 Name:           mote
-Version:        1.3.0~beta.3
+Version:        1.3.0
 Release:        1%{?dist}
-Summary:        Connect to Linux desktops over RDP
+Summary:        Connect to Linux desktops over RDP and VNC
 License:        AGPL-3.0-or-later
 URL:            https://github.com/hyprlab/mote
 Source0:        %{name}-%{version}-bin.tar
@@ -73,6 +73,35 @@ done
 %{_datadir}/icons/hicolor/symbolic/apps/%{appid}-symbolic.svg
 
 %changelog
+* Sun Nov 08 2026 Hyprlab <hyprlab@proton.me> - 1.3.0-1
+- VNC connections beside RDP
+- MacOS Screen Sharing support
+- Encrypted sessions with Macs
+- Automatic choice of the sign-in each macOS version takes
+- Encrypted VNC sessions
+- Stop before an unencrypted VNC session unless allowed
+- VNC desktop resized with the window
+- Codec choice for VNC connections
+- Two-way clipboard for text with VNC servers and Macs
+- Caps Lock and Num Lock kept in step with VNC servers
+- VNC profiles imported from Remmina
+- VNC connections imported from and exported to .vnc files
+- Scan Network lists the RDP and VNC servers on the local network
+- Scan Network covers additional subnets
+- Adding a scanned server opens the connection editor
+- Protocol named on every sidebar row
+- Several addresses on one connection
+- Addresses tried in order until one connects
+- Addresses reorder by dragging
+- Alternate full address read from and written to .rdp files
+- Delete button in the connection editor
+- Projects Mote is built on credited in About
+- Beta builds in every package format
+- Deleting a connection left its session running
+- Flatpak bundles never received updates
+- Adding a scanned server used its name as the address
+- French by @frenchy82
+
 * Thu Nov 05 2026 Hyprlab <hyprlab@proton.me> - 1.3.0~beta.3-1
 - Several addresses on one connection
 - Addresses tried in order until one connects

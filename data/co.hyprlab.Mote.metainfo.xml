@@ -64,19 +64,9 @@
   </supports>
 
   <releases>
-    <release version="1.3.0-beta.3" date="2026-11-05" type="development">
+    <release version="1.3.0" date="2026-11-08" type="stable">
       <description>
-        <p>A connection can have several addresses, tried in order until one connects. They reorder by dragging. An .rdp file's alternate full address is one of them.</p>
-      </description>
-    </release>
-    <release version="1.3.0-beta.2" date="2026-11-04" type="development">
-      <description>
-        <p>Scan Network covers additional subnets, kept from one scan to the next. Flatpak bundles receive updates.</p>
-      </description>
-    </release>
-    <release version="1.3.0-beta.1" date="2026-11-04" type="development">
-      <description>
-        <p>Scan Network lists the RDP servers on the local network. The connection editor has a Delete button. Deleting a connection ends its session.</p>
+        <p>Mote connects to VNC servers beside RDP ones, and to Macs through macOS Screen Sharing, encrypted where the server allows. Scan Network finds both kinds. A connection can have several addresses, tried in order until one connects. Mote speaks French.</p>
       </description>
     </release>
     <release version="1.2.0" date="2026-11-03" type="stable">

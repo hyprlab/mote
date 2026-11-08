@@ -1,40 +1,46 @@
 # Mote
 
 A remote desktop client for GNOME, for Linux machines that run GNOME Remote
-Desktop, xrdp or KRdp. Each section below is what a release brought; the
-detail is in the commit history.
+Desktop, xrdp, KRdp or a VNC server, and for Macs. Each section below is
+what a release brought; the detail is in the commit history.
 
-## What's new in 1.3.0-beta.3
+## What's new in 1.3.0
 
 ### New features:
 
+- VNC connections beside RDP
+- macOS Screen Sharing support
+- Encrypted sessions with Macs
+- Automatic choice of the sign-in each macOS version takes
+- Encrypted VNC sessions
+- Stop before an unencrypted VNC session unless allowed
+- VNC desktop resized with the window
+- Codec choice for VNC connections
+- Two-way clipboard for text with VNC servers and Macs
+- Caps Lock and Num Lock kept in step with VNC servers
+- VNC profiles imported from Remmina
+- VNC connections imported from and exported to .vnc files
+- Scan Network lists the RDP and VNC servers on the local network
+- Scan Network covers additional subnets
+- Adding a scanned server opens the connection editor
+- Protocol named on every sidebar row
 - Several addresses on one connection
 - Addresses tried in order until one connects
 - Addresses reorder by dragging
 - Alternate full address read from and written to .rdp files
-
-## What's new in 1.3.0-beta.2
-
-### New features:
-
-- Scan Network covers additional subnets
-
-### Fixes:
-
-- Flatpak bundles never received updates
-
-## What's new in 1.3.0-beta.1
-
-### New features:
-
-- Scan Network lists the RDP servers on the local network
-- Adding a scanned server opens the connection editor
 - Delete button in the connection editor
+- Projects Mote is built on credited in About
 - Beta builds in every package format
 
 ### Fixes:
 
 - deleting a connection left its session running
+- Flatpak bundles never received updates
+- adding a scanned server used its name as the address
+
+### Translations:
+
+- French by @frenchy82 - (#1)
 
 ## What's new in 1.2.0
 
