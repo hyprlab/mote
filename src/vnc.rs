@@ -74,11 +74,12 @@ async fn drive(
     // waits before the next try.
     let mut lost: Option<(std::time::Instant, std::time::Duration)> = None;
     let mut keys = input::Keys::default();
+    let mut ways = apple::Ways::default();
     // The last copy here while no session was up, for the next to hear.
     let mut early = None;
     loop {
         let opened = tokio::select! {
-            opened = open(target, events) => opened,
+            opened = open(target, events, &mut ways) => opened,
             () = closed(commands, &mut early) => return Ok(Ending::Closed),
         };
         let opened = match opened {
@@ -122,6 +123,7 @@ async fn drive(
 async fn open(
     target: &mut Target,
     events: &mpsc::Sender<Event>,
+    ways: &mut apple::Ways,
 ) -> Result<handshake::Opened, Failure> {
     let addresses = target.addresses.clone();
     let mut waking = target.wake.map(Waking::new);
@@ -139,7 +141,7 @@ async fn open(
             }
             let patience = route::patience(waking.is_some(), at + 1 == addresses.len());
             let mut asked = false;
-            let mut result = attempt(target, events, patience, &mut asked).await;
+            let mut result = attempt(target, events, patience, &mut asked, ways).await;
             // A server can give up on a connection while its certificate
             // or key waits on the user; once trusted, a second try goes
             // straight through.
@@ -149,7 +151,7 @@ async fn open(
             );
             if asked && dropped {
                 tracing::info!("retrying after the question of trust");
-                result = attempt(target, events, patience, &mut false).await;
+                result = attempt(target, events, patience, &mut false, ways).await;
             }
             match result {
                 Ok(opened) => return Ok(opened),
@@ -168,14 +170,26 @@ async fn open(
     }
 }
 
+/// One connection, or, to a Mac, as many as it takes to find a way in that
+/// its macOS takes.
 async fn attempt(
     target: &Target,
     events: &mpsc::Sender<Event>,
     patience: std::time::Duration,
     asked: &mut bool,
+    ways: &mut apple::Ways,
 ) -> Result<handshake::Opened, Failure> {
-    let (stream, _) = route::open(target, events, patience).await?;
-    handshake::run(stream, target, events, asked).await
+    loop {
+        let (stream, _) = route::open(target, events, patience).await?;
+        match handshake::run(stream, target, events, asked, ways).await {
+            // A Mac turns away a connection that comes at once after the
+            // last.
+            Err(failure) if !*asked && ways.failed(&failure) => {
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+            result => return result,
+        }
+    }
 }
 
 /// Resolves when the interface closes the session. What was copied here
@@ -221,6 +235,9 @@ mod tests {
     /// `MOTE_TEST_PICTURE=<file.ppm>` keeps the last frame;
     /// `MOTE_TEST_TYPE=<text>` types it (lower case letters and spaces)
     /// after the first frame, and keeps the frame two seconds later.
+    /// With a Mac, `MOTE_TEST_APPLE=<srp|rsa|dhrecords|dh>` starts at that
+    /// way in, and `MOTE_TEST_NO_RECORDS` plays a macOS that takes no
+    /// records.
     /// `MOTE_TEST_VNC=localhost:5999 cargo test vnc::tests::live -- --ignored`.
     #[test]
     #[ignore]

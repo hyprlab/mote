@@ -28,7 +28,7 @@ Every VNC section, from 13 on, is checked against:
 - **KRfb** on KDE Plasma 6, and **x11vnc**, both built on libvncserver.
 
 From section 18, VNC is also checked against **macOS Screen Sharing**
-(macOS 26), which greets as RFB 3.889 and offers Apple's Diffie-Hellman
+(macOS 27), which greets as RFB 3.889 and offers Apple's Diffie-Hellman
 (type 30), Apple's SRP (33 and 36), Kerberos (35) and VNC Authentication.
 
 ## Protocol engine
@@ -871,6 +871,8 @@ What Remmina's VNC plugin offers, and where Mote has it:
 - Apple's SRP sign-in, which verifies the server, and the encryption macOS
   puts around the whole session after it, so a Mac connects encrypted
   without Allow Unencrypted.
+- Older macOS too, without being told which: Apple's older ways in are
+  tried in turn until the Mac takes one.
 - Apple's clipboard, which carries UTF-8 text in either direction.
 - Still to come: the display layout macOS sends for HiDPI and its several
   displays, its pointer shapes, and its quality encodings. High
@@ -881,10 +883,8 @@ Built:
 - Apple's SRP (type 33): the user name under the server's RSA key, then
   SRP-6a over RFC 3526's 4096-bit group with SHA-512, the password
   stretched with PBKDF2 for as many rounds as the server asks (116,279 on
-  macOS 26). The server's proof is checked, so it verifies the server
+  macOS 27). The server's proof is checked, so it verifies the server
   without a key to trust; a group other than RFC 3526's is turned away.
-  It is taken before every type but RSA-AES and VeNCrypt, which macOS
-  doesn't offer.
 - Apple's records, after the sign-in: the viewer's description and a
   request for encryption, then a key from the server wrapped in the one
   the sign-in agreed on. From there each message goes in a record of its
@@ -893,6 +893,18 @@ Built:
   taken the same way. Apple's Diffie-Hellman (type 30) gets the records
   too when the server is macOS, so it counts as encrypted without the
   server being verified, as anonymous TLS does.
+- The ways into a Mac, best first: SRP and records; Apple's RSA sign-in
+  without SRP (type 33 again: the account encrypted with an AES key sent
+  under the server's RSA key) and records; Diffie-Hellman and records;
+  then Diffie-Hellman alone, which protects the password only and so
+  takes Allow Unencrypted. Only the types the Mac offers are tried. A Mac
+  turns down a way it doesn't have by closing the connection or sending
+  something else, and the next is tried on a new connection a second
+  later; a Mac that signed in and sent no session key within 5 seconds
+  skips to the ways without records. A wrong password ends the tries.
+  What the session learns holds for its reconnections. The RSA way's key
+  isn't asked about, as macOS shows no fingerprint to check it against,
+  so it counts as encrypted without the server being verified.
 - The clipboard: macOS is told to watch its own, says when it changes,
   and sends it as an archive of flavors, of which the UTF-8, UTF-16 or
   older Mac text is taken; text copied here goes back the same way, as
@@ -900,7 +912,7 @@ Built:
 
 Apple publishes none of this. The layouts come from iShareScreen's
 description of the protocol (`docs/apple_vnc_rfc.md` in
-Chapoly1305/iShareScreen), and were checked against macOS 26 with a
+Chapoly1305/iShareScreen), and were checked against macOS 27 with a
 prototype first. Things macOS does that the description leaves out: the
 choice of type 33 has to come in the same packet as its first message;
 the server's challenge has a header of 10 bytes, not 9; and a client that
@@ -908,10 +920,13 @@ answers the greeting with 3.889, as Apple's viewer does, is sent a black
 desktop until it describes a display of its own, so Mote answers 3.8, to
 which macOS sends its desktop, encrypted the same way.
 
-Tried against a MacBook on macOS 26, from the live test: the sign-in with
-types 33 and 30, a wrong password, which ends as refused, and the session
-in records, its desktop coming at about 11 updates a second. Not yet
-tried: the clipboard both ways, and a key changed during a session.
+Tried against a MacBook on macOS 27, from the live test: each of the four
+ways in, its desktop coming at about 11 updates a second; a wrong
+password, which ends as refused; and a Mac played as taking no records,
+from which the session stepped down to Diffie-Hellman alone where Allow
+Unencrypted was on, and stopped with that advice where it was off. Not
+yet tried: an older Mac itself, the clipboard both ways, and a key
+changed during a session.
 
 ## Remmina parity
 

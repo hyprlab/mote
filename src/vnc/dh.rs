@@ -49,19 +49,7 @@ pub(super) async fn sign_in(
     let shared = theirs.modpow(&secret, &prime);
     let key = Md5::digest(fixed(&shared.to_bytes_be(), size));
 
-    let mut credentials = [0; FIELD * 2];
-    OsRng.fill_bytes(&mut credentials);
-    for (field, text) in credentials.chunks_mut(FIELD).zip([username, password]) {
-        let text = text.as_bytes();
-        if text.len() >= FIELD {
-            return Err(Failure::Protocol(
-                "a user name or password of 64 bytes or more".into(),
-            ));
-        }
-        // NUL-terminated, the rest left as random bytes.
-        field[..text.len()].copy_from_slice(text);
-        field[text.len()] = 0;
-    }
+    let mut credentials = credentials(username, password)?;
     let cipher = Aes128::new(&key);
     for block in credentials.chunks_mut(16) {
         cipher.encrypt_block(GenericArray::from_mut_slice(block));
@@ -71,6 +59,24 @@ pub(super) async fn sign_in(
     stream.write_all(&message).await.map_err(early)?;
     stream.flush().await.map_err(early)?;
     Ok(key.into())
+}
+
+/// The user name and password as Apple's sign-ins take them, before they
+/// are encrypted: 64 bytes each, NUL-terminated, the rest random.
+pub(super) fn credentials(username: &str, password: &str) -> Result<[u8; FIELD * 2], Failure> {
+    let mut credentials = [0; FIELD * 2];
+    OsRng.fill_bytes(&mut credentials);
+    for (field, text) in credentials.chunks_mut(FIELD).zip([username, password]) {
+        let text = text.as_bytes();
+        if text.len() >= FIELD {
+            return Err(Failure::Protocol(
+                "a user name or password of 64 bytes or more".into(),
+            ));
+        }
+        field[..text.len()].copy_from_slice(text);
+        field[text.len()] = 0;
+    }
+    Ok(credentials)
 }
 
 /// A big-endian number in exactly `size` bytes.

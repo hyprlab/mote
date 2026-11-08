@@ -34,8 +34,10 @@ pub(in crate::vnc) const ENCRYPTION_INFO: i32 = 0x44f;
 /// macOS's message of status, which the client is sent unasked.
 pub(in crate::vnc) const MISC_STATUS: u8 = 0x14;
 
-/// How long the server gets to send the first key.
-const KEY_WITHIN: Duration = Duration::from_secs(10);
+/// How long the server gets to send the first key: macOS 27 sends it in
+/// well under a second, and a Mac that takes no records is tried another
+/// way once this is up.
+const KEY_WITHIN: Duration = Duration::from_secs(5);
 /// The integrity check at each record's end.
 const CHECK: usize = 20;
 /// The most a record carries: what macOS sends at most itself.
@@ -70,6 +72,11 @@ pub(in crate::vnc) async fn start(
     mut stream: Box<dyn Stream>,
     wrap: [u8; 16],
 ) -> Result<(Records, Rekeys), Failure> {
+    // In tests, `MOTE_TEST_NO_RECORDS` plays a Mac that takes none.
+    #[cfg(test)]
+    if std::env::var_os("MOTE_TEST_NO_RECORDS").is_some() {
+        return Err(Failure::Protocol("no records, as asked".into()));
+    }
     let mut hello = viewer_info();
     hello.extend_from_slice(&START);
     stream.write_all(&hello).await.map_err(early)?;

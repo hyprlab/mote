@@ -8,7 +8,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
-use super::apple::{self, Rekeys};
+use super::apple::{self, Rekeys, Ways};
 use super::security::{self, NONE};
 use crate::remote::route::Stream;
 use crate::remote::{Event, Failure, Protection, Target, Unreachable, describe};
@@ -50,12 +50,14 @@ enum Version {
 
 /// Sign in to `target`, sharing the desktop with anyone else on it.
 /// `asked` is set when the user was asked to trust the server, which a
-/// server may not wait for.
+/// server may not wait for; `ways` holds what the session has learned of a
+/// Mac.
 pub(super) async fn run(
     mut stream: Box<dyn Stream>,
     target: &Target,
     events: &mpsc::Sender<Event>,
     asked: &mut bool,
+    ways: &mut Ways,
 ) -> Result<Opened, Failure> {
     let mut greeting = [0; 12];
     match tokio::time::timeout(GREETING_WITHIN, stream.read_exact(&mut greeting)).await {
@@ -112,14 +114,23 @@ pub(super) async fn run(
         Some(only) => offered.into_iter().filter(|&kind| kind == only).collect(),
         None => offered,
     };
-    let kind = security::choose(&offered, target.allow_unencrypted, apple)?;
-    // Apple's SRP sends its choice with its first message, as macOS closes
+    let way = apple
+        .then(|| ways.choose(&offered, target.allow_unencrypted))
+        .flatten();
+    let kind = match way {
+        Some(way) => {
+            tracing::info!("trying macOS's {way:?}");
+            way.kind()
+        }
+        None => security::choose(&offered, target.allow_unencrypted)?,
+    };
+    // Apple's RSA sends its choice with its first message, as macOS closes
     // the connection on a choice that comes alone.
-    if version != Version::V3_3 && kind != apple::APPLE_SRP {
+    if version != Version::V3_3 && kind != apple::APPLE_RSA {
         stream.write_all(&[kind]).await.map_err(early)?;
         stream.flush().await.map_err(early)?;
     }
-    let secured = security::run(kind, stream, target, events, asked, apple).await?;
+    let secured = security::run(kind, stream, target, events, asked, way).await?;
     let mut stream = secured.stream;
     let wrap = secured.wrap;
     // RFB 3.8 reports on None too; the versions before it don't.
@@ -159,7 +170,9 @@ pub(super) async fn run(
     tracing::info!("in “{name}”, {width}x{height}");
     let mut rekeys = None;
     if let Some(wrap) = wrap {
-        let (records, keys) = apple::start(stream, wrap).await?;
+        let (records, keys) = apple::start(stream, wrap)
+            .await
+            .inspect_err(|_| ways.no_records())?;
         stream = Box::new(records);
         rekeys = Some(keys);
     }
