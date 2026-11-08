@@ -4,7 +4,7 @@
 %global debug_package %{nil}
 
 Name:           mote
-Version:        1.3.0
+Version:        1.4.0
 Release:        1%{?dist}
 Summary:        Connect to Linux desktops over RDP and VNC
 License:        AGPL-3.0-or-later
@@ -73,6 +73,13 @@ done
 %{_datadir}/icons/hicolor/symbolic/apps/%{appid}-symbolic.svg
 
 %changelog
+* Sun Nov 08 2026 Hyprlab <hyprlab@proton.me> - 1.4.0-1
+- VNC (macOS) in the connection editor's protocol list
+- Connection Info window from the session menu
+- Quit in the session menu
+- iShareScreen credited in About
+- The session menu closed by itself during Mac sessions
+
 * Sun Nov 08 2026 Hyprlab <hyprlab@proton.me> - 1.3.0-1
 - VNC connections beside RDP
 - MacOS Screen Sharing support
