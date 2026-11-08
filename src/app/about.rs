@@ -207,10 +207,7 @@ fn thanks(page: &gtk::Box) {
 
     // The RDP engine, the SSH tunnel, and the robots connections are shown
     // as. CC0 asks for no credit; it is given anyway.
-    page.append(&section_heading(&crate::i18n::i18n_f(
-        "{name} relies on the hard work of these projects",
-        &[("name", &APP_NAME)],
-    )));
+    page.append(&section_heading(&i18n("Built using")));
     let projects = boxed_list();
     projects.append(&link_row(
         "IronRDP",
