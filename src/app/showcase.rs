@@ -14,7 +14,8 @@
 //!   to its session, and `scaling:<resize|fit|actual>` sets its scaling;
 //!   `keys:<name>` sends a combination from its Send Keys menu,
 //!   `screenshot` takes a screenshot, `view-only:<1|0>` sets that, `menu`
-//!   and `info` open its menu and its details, and
+//!   opens its menu, `info` its Connection Info window, captured as
+//!   `<file>-info.png`, and
 //!   `all-monitors` spreads it over every monitor, whose windows are
 //!   captured too, as `<file>-2.png` and on.
 //!   `delay:<seconds>` makes the steps after it wait that long; `bottom`
@@ -183,6 +184,17 @@ impl AppModel {
         for (i, other) in spread.enumerate() {
             let path = path.replace(".png", &format!("-{}.png", i + 2));
             match capture(other.upcast_ref(), &path) {
+                Ok(()) => tracing::info!("showcase: wrote {path}"),
+                Err(e) => tracing::error!("showcase: {e}"),
+            }
+        }
+        // A session's Connection Info window.
+        if let Some(info) = gtk::Window::list_toplevels()
+            .into_iter()
+            .find(|w| w.is_visible() && w.has_css_class("session-info"))
+        {
+            let path = path.replace(".png", "-info.png");
+            match capture(info.upcast_ref(), &path) {
                 Ok(()) => tracing::info!("showcase: wrote {path}"),
                 Err(e) => tracing::error!("showcase: {e}"),
             }

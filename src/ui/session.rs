@@ -396,7 +396,10 @@ impl Component for Session {
             stack: gtk::Stack::new(),
             toasts: adw::ToastOverlay::new(),
             menu: controls::menu(false),
-            info: info::Info::new(info::Facts::new(&connection, &connection.address())),
+            info: info::Info::new(
+                info::Facts::new(&connection, &connection.address()),
+                &connection.name,
+            ),
             connection,
         };
         controls::install_actions(
@@ -563,11 +566,7 @@ impl Component for Session {
                     button.popup();
                 }
             }
-            SessionInput::ShowInfo => {
-                if let Some(button) = session_menu(root) {
-                    self.info.show(&button);
-                }
-            }
+            SessionInput::ShowInfo => self.info.show(window_of(root).as_ref()),
             SessionInput::SetScaling(scaling) => {
                 self.scaling = scaling;
                 self.display.set_mode(scaling);
@@ -706,7 +705,7 @@ impl Component for Session {
     /// Closed with its window, or with the app: the session ends here too.
     fn shutdown(&mut self, _: &mut Self::Widgets, _: relm4::Sender<Self::Output>) {
         self.finished();
-        self.info.unparent();
+        self.info.close();
     }
 
     fn update_cmd(
