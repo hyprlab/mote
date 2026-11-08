@@ -51,6 +51,15 @@ msgstr ""
 msgid "Translated by"
 msgstr ""
 
+#. The RDP engine, the SSH tunnel, the description of Apple's protocol
+#. the Mac support is built from, and the robots connections are shown
+#. as. CC0 asks for no credit; it is given anyway.
+msgid "Built using"
+msgstr ""
+
+msgid "Apple’s Screen Sharing protocol"
+msgstr ""
+
 msgid "Pixelbot by DiceBear"
 msgstr ""
 

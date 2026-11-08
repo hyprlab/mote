@@ -205,7 +205,8 @@ fn thanks(page: &gtk::Box) {
         }
     }
 
-    // The RDP engine, the SSH tunnel, and the robots connections are shown
+    // The RDP engine, the SSH tunnel, the description of Apple's protocol
+    // the Mac support is built from, and the robots connections are shown
     // as. CC0 asks for no credit; it is given anyway.
     page.append(&section_heading(&i18n("Built using")));
     let projects = boxed_list();
@@ -218,6 +219,11 @@ fn thanks(page: &gtk::Box) {
         "russh",
         Some("Apache 2.0"),
         "https://github.com/warp-tech/russh",
+    ));
+    projects.append(&link_row(
+        "iShareScreen",
+        Some(&i18n("Apple’s Screen Sharing protocol")),
+        "https://github.com/Chapoly1305/iShareScreen",
     ));
     projects.append(&link_row(
         &i18n("Pixelbot by DiceBear"),
