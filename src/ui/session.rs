@@ -279,7 +279,9 @@ impl Component for Session {
                     set_icon_name: "view-more-symbolic",
                     set_tooltip_text: Some(&i18n("Session Menu")),
                     update_property: &[gtk::accessible::Property::Label(&i18n("Session Menu"))],
-                    #[watch]
+                    // Set when it changes and not on every update: setting it
+                    // closes the menu, and a desktop that changes often
+                    // updates the view many times a second.
                     set_menu_model: Some(&model.menu),
                 },
                 pack_end = &gtk::Button {
@@ -540,6 +542,9 @@ impl Component for Session {
             SessionInput::SetDetached(detached) => {
                 self.detached = detached;
                 self.menu = controls::menu(detached);
+                if let Some(button) = session_menu(root) {
+                    button.set_menu_model(Some(&self.menu));
+                }
                 if self.page == Page::Desktop {
                     self.display.grab_focus();
                 }
