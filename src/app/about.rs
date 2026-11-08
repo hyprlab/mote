@@ -205,16 +205,29 @@ fn thanks(page: &gtk::Box) {
         }
     }
 
-    // The robots connections are shown as. CC0 asks for no credit; it is
-    // given anyway.
-    let art = boxed_list();
-    art.set_margin_top(20);
-    art.append(&link_row(
+    // The RDP engine, the SSH tunnel, and the robots connections are shown
+    // as. CC0 asks for no credit; it is given anyway.
+    page.append(&section_heading(&crate::i18n::i18n_f(
+        "{name} relies on the hard work of these projects",
+        &[("name", &APP_NAME)],
+    )));
+    let projects = boxed_list();
+    projects.append(&link_row(
+        "IronRDP",
+        Some("MIT, Apache 2.0"),
+        "https://github.com/Devolutions/IronRDP",
+    ));
+    projects.append(&link_row(
+        "russh",
+        Some("Apache 2.0"),
+        "https://github.com/warp-tech/russh",
+    ));
+    projects.append(&link_row(
         &i18n("Pixelbot by DiceBear"),
         Some("CC0 1.0"),
         "https://www.dicebear.com",
     ));
-    page.append(&art);
+    page.append(&projects);
 
     let footer = gtk::Label::new(Some(&i18n("© 2026 Hyprlab")));
     footer.add_css_class("dim-label");
