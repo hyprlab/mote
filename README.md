@@ -4,7 +4,7 @@
 
 # Mote
 
-A GNOME-native RDP and VNC client written in Rust, with an IronRDP backend for RDP and its own engine for VNC, specifically designed for connecting to Linux desktops. Full support for GNOME Remote Desktop, xrdp, KRdp, TigerVNC and wayvnc.
+A GNOME-native RDP and VNC client written in Rust, with an IronRDP backend for RDP and its own engine for VNC, specifically designed for connecting to Linux desktops. Full support for GNOME Remote Desktop, xrdp, KRdp, TigerVNC and wayvnc, and for Macs through macOS Screen Sharing.
 
 <p align="center">
   <picture>
@@ -13,21 +13,33 @@ A GNOME-native RDP and VNC client written in Rust, with an IronRDP backend for R
   </picture>
 </p>
 
-Mote 1.0 is the first stable release. It was built in sections, each one
-finished and tested against a real server before the next started; what each
-section holds is in [docs/ROADMAP.md](docs/ROADMAP.md).
+Mote has been stable since 1.0. It is built in sections, each one finished
+and tested against a real server before the next starts; what each section
+holds, and what is still to come, is in [docs/ROADMAP.md](docs/ROADMAP.md).
+What each release brought is in
+[docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md).
 
 ## Goals
 
 - Linux machines first: GNOME Remote Desktop (Desktop Sharing and Remote
-  Login), xrdp and KRdp are what Mote is built and tested against. Mote has
-  not been tested against a Windows machine.
-- Everything Remmina's RDP plugin does, in a GNOME-native interface.
+  Login), xrdp and KRdp over RDP, and GNOME Remote Desktop, TigerVNC and
+  wayvnc over VNC, are what Mote is built and tested against. Mote has not
+  been tested against a Windows machine.
+- Macs as well: macOS Screen Sharing over VNC, signed in and encrypted the
+  way Apple's own viewer is, with the sign-in each macOS version takes
+  chosen without being told.
+- Everything Remmina's RDP and VNC plugins do that a Linux server takes, in
+  a GNOME-native interface: a session opens beside the connections, and
+  moves to a window of its own or goes fullscreen, on one monitor or all.
 - Sharp on HiDPI displays: the remote desktop follows the local scale factor,
   fractional scaling included, and resizes with the window.
-- Clipboard sharing in both directions: text, rich text, images and files.
-- Fast: hardware-friendly decoding of the RDP graphics pipeline, and no work
-  on the main thread that the display does not need.
+- Clipboard sharing in both directions: text, rich text, images and files
+  over RDP, and text over VNC.
+- Encrypted by default: a VNC server that offers no encryption stops the
+  connection before the password goes out, unless the connection allows it.
+- Fast: H.264 decoding through FFmpeg or OpenH264, for RDP's graphics
+  pipeline and wayvnc's Open H.264, and no work on the main thread that the
+  display does not need.
 - A small memory footprint, so a session costs little beside the rest of
   the desktop.
 - Settings per connection, with defaults that suit a Linux server.
