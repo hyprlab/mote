@@ -22,14 +22,16 @@ msgstr "Notes de version"
 msgid "Full Release Notes on GitHub"
 msgstr "Notes de version complètes sur GitHub"
 
-#, fuzzy
 msgid "GNOME-native RDP and VNC client"
-msgstr "Client RDP natif pour GNOME"
+msgstr ""
 
 msgid ""
 "A beta build for trying changes early. Expect bugs, and report them on "
 "GitHub. It shares connections and settings with the stable install."
 msgstr ""
+"Une version bêta pour essayer les changements en avance. Attendez-vous à des "
+"bogues et signalez-les sur GitHub. Elle partage les connexions et les "
+"paramètres avec l’installation stable."
 
 msgid "What’s new in {version}"
 msgstr "Nouveautés de la version {version}"
@@ -101,11 +103,10 @@ msgid "Sort By"
 msgstr "Trier par"
 
 msgid "Scan Network…"
-msgstr ""
+msgstr "Analyser le réseau…"
 
-#, fuzzy
 msgid "Import .rdp and .vnc Files…"
-msgstr "Importer des fichiers .rdp…"
+msgstr ""
 
 msgid "Import from Remmina"
 msgstr "Importer depuis Remmina"
@@ -113,9 +114,8 @@ msgstr "Importer depuis Remmina"
 msgid "Duplicate"
 msgstr "Dupliquer"
 
-#, fuzzy
 msgid "Export to File…"
-msgstr "Exporter en fichier .rdp…"
+msgstr ""
 
 msgid "Delete…"
 msgstr "Supprimer…"
@@ -169,7 +169,7 @@ msgid "Address"
 msgstr "Adresse"
 
 msgid "Other Addresses"
-msgstr ""
+msgstr "Autres adresses"
 
 msgid "Asked when connecting"
 msgstr "Demandé lors de la connexion"
@@ -186,13 +186,11 @@ msgstr "Dernière connexion"
 msgid "Remote Desktop Files"
 msgstr "Fichiers de bureau à distance"
 
-#, fuzzy
 msgid "Import .rdp and .vnc Files"
-msgstr "Importer des fichiers .rdp"
+msgstr ""
 
-#, fuzzy
 msgid "Export to File"
-msgstr "Exporter en fichier .rdp"
+msgstr ""
 
 msgid "Delete {name}?"
 msgstr "Supprimer {name} ?"
@@ -209,9 +207,8 @@ msgstr "Supprimer"
 msgid "{file} is not a connection file"
 msgstr "{file} n’est pas un fichier de connexion"
 
-#, fuzzy
 msgid "No Remmina connections found"
-msgstr "Aucune connexion RDP Remmina trouvée"
+msgstr ""
 
 msgid "Those connections are already here"
 msgstr "Ces connexions sont déjà présentes"
@@ -284,7 +281,7 @@ msgstr ""
 "Remmina."
 
 msgid "Scan Network"
-msgstr ""
+msgstr "Analyser le réseau"
 
 msgid "No Connection Selected"
 msgstr "Aucune connexion sélectionnée"
@@ -317,16 +314,16 @@ msgid "Choose Image"
 msgstr "Choisir une image"
 
 msgid "Tried in order when the address can’t be reached"
-msgstr ""
+msgstr "Essayées dans l’ordre lorsque l’adresse est injoignable"
 
 msgid "Add Address"
-msgstr ""
+msgstr "Ajouter une adresse"
 
 msgid "Remove"
 msgstr "Retirer"
 
 msgid "Remove Address"
-msgstr ""
+msgstr "Retirer l’adresse"
 
 msgid "Save"
 msgstr "Enregistrer"
@@ -396,7 +393,7 @@ msgid "SSH Tunnel"
 msgstr "Tunnel SSH"
 
 msgid "A password is needed only if no SSH key works"
-msgstr ""
+msgstr "Un mot de passe n’est nécessaire que si aucune clé SSH ne fonctionne"
 
 msgid "RD Gateway"
 msgstr "Passerelle RD"
@@ -455,9 +452,8 @@ msgstr ""
 msgid "Low Bandwidth"
 msgstr ""
 
-#, fuzzy
 msgid "About three times the bandwidth"
-msgstr "Environ deux fois plus de bande passante ; KRdp le refuse"
+msgstr ""
 
 msgid "A softer picture, for half the bandwidth"
 msgstr ""
@@ -623,9 +619,8 @@ msgstr "Exécution de la commande avant la connexion…"
 msgid "Connecting to {name}…"
 msgstr "Connexion à {name}…"
 
-#, fuzzy
 msgid "Connection Info"
-msgstr "Menu de la connexion"
+msgstr ""
 
 msgid "Return to Main Window"
 msgstr "Retourner à la fenêtre principale"
@@ -654,9 +649,8 @@ msgstr "Envoyer des touches"
 msgid "Take Screenshot"
 msgstr "Prendre une capture d’écran"
 
-#, fuzzy
 msgid "Quit {name}"
-msgstr "À propos de {name}"
+msgstr ""
 
 msgid "Screenshots"
 msgstr "Captures d’écran"
@@ -664,14 +658,10 @@ msgstr "Captures d’écran"
 msgid "Could Not Connect"
 msgstr "Connexion impossible"
 
-#, fuzzy
 msgid ""
 "The user name or password was not accepted. A Mac takes those of an account "
 "on it, with Screen Sharing or Remote Management allowed for that account."
 msgstr ""
-"Le nom d’utilisateur ou le mot de passe n’a pas été accepté. GNOME Remote "
-"Desktop utilise ceux définis dans ses paramètres de bureau à distance, et "
-"non le mot de passe de session."
 
 msgid ""
 "The password was not accepted. VNC servers keep a password of their own, not "
@@ -926,9 +916,8 @@ msgstr "Copier"
 msgid "SSH tunnel through {host}"
 msgstr ""
 
-#, fuzzy
 msgid "RD Gateway at {host}"
-msgstr "Passerelle RD"
+msgstr ""
 
 msgid "Direct"
 msgstr ""
@@ -936,16 +925,14 @@ msgstr ""
 msgid "Route"
 msgstr ""
 
-#, fuzzy
 msgid "Desktop Name"
-msgstr "Bureau de {name}"
+msgstr ""
 
 msgid "Security"
 msgstr ""
 
-#, fuzzy
 msgid "Encryption"
-msgstr "Connexion"
+msgstr ""
 
 msgid "Encrypted, computer verified"
 msgstr ""
@@ -953,13 +940,11 @@ msgstr ""
 msgid "Encrypted, computer not verified"
 msgstr ""
 
-#, fuzzy
 msgid "Password only"
-msgstr "Mot de passe"
+msgstr ""
 
-#, fuzzy
 msgid "Desktop Size"
-msgstr "Fichiers de bureau à distance"
+msgstr ""
 
 msgid "Frame Rate"
 msgstr ""
@@ -976,9 +961,8 @@ msgstr ""
 msgid "Data Received"
 msgstr ""
 
-#, fuzzy
 msgid "Connected For"
-msgstr "Connecté"
+msgstr ""
 
 msgid "English (US)"
 msgstr "Anglais (États-Unis)"
@@ -1104,13 +1088,10 @@ msgstr ""
 "Vérifiez que cette empreinte correspond à celle des paramètres de bureau à "
 "distance de l’ordinateur."
 
-#, fuzzy
 msgid ""
 "Check that this fingerprint matches the one its VNC server shows for its RSA "
 "key."
 msgstr ""
-"Vérifiez que cette empreinte correspond à celle des paramètres de bureau à "
-"distance de l’ordinateur."
 
 msgid "The SSH Server’s Identity Has Changed"
 msgstr "L’identité du serveur SSH a changé"
@@ -1206,67 +1187,67 @@ msgid "The screenshot could not be saved"
 msgstr "La capture d’écran n’a pas pu être enregistrée"
 
 msgid "Scan Again"
-msgstr ""
+msgstr "Analyser à nouveau"
 
 msgid "Networks"
-msgstr ""
+msgstr "Réseaux"
 
 msgid "Scanning…"
-msgstr ""
+msgstr "Analyse en cours…"
 
 msgid "No Computers Found"
-msgstr ""
+msgstr "Aucun ordinateur trouvé"
 
 msgid "Nothing on {networks} answered on port {first} or {second}."
-msgstr ""
+msgstr "Rien sur {networks} n’a répondu sur le port {first} ou {second}."
 
 msgid "Add Network"
-msgstr ""
+msgstr "Ajouter un réseau"
 
 msgid "No Local Network"
-msgstr ""
+msgstr "Aucun réseau local"
 
 msgid "This computer has no address on a private network."
-msgstr ""
+msgstr "Cet ordinateur n’a aucune adresse sur un réseau privé."
 
 msgid "Computers"
-msgstr ""
+msgstr "Ordinateurs"
 
 msgid "This Computer"
-msgstr ""
+msgstr "Cet ordinateur"
 
 msgid "Scan additional subnets"
-msgstr ""
+msgstr "Analyser des sous-réseaux supplémentaires"
 
 msgid "Network, Such As 192.168.2.0/24"
-msgstr ""
+msgstr "Réseau, par exemple 192.168.2.0/24"
 
 msgid "{network} is already scanned"
-msgstr ""
+msgstr "{network} est déjà analysé"
 
 msgid "Not a network, such as 192.168.2.0/24"
-msgstr ""
+msgstr "Ce n’est pas un réseau, par exemple 192.168.2.0/24"
 
 msgid "Only private networks can be scanned"
-msgstr ""
+msgstr "Seuls les réseaux privés peuvent être analysés"
 
 msgid "A network can be /16 at the widest"
-msgstr ""
+msgstr "Un réseau peut être un /16 au maximum"
 
 msgid "Up to {minutes} min to scan"
-msgstr ""
+msgstr "Jusqu’à {minutes} min d’analyse"
 
 msgid "Remove {name}"
-msgstr ""
+msgstr "Retirer {name}"
 
 msgid "Add {name}"
-msgstr ""
+msgstr "Ajouter {name}"
 
 msgid "Added"
-msgstr ""
+msgstr "Ajouté"
 
 msgid "GNOME Remote Desktop"
-msgstr ""
+msgstr "Bureau à distance GNOME"
 
 msgid "Mote"
 msgstr "Mote"
@@ -1274,24 +1255,17 @@ msgstr "Mote"
 msgid "Remote Desktop Client"
 msgstr "Client de bureau à distance"
 
-#, fuzzy
 msgid "Connect to Linux desktops over RDP and VNC"
-msgstr "Connectez-vous à des bureaux Linux via RDP"
+msgstr ""
 
-#, fuzzy
 msgid "RDP;VNC;Remote Desktop;xrdp;TigerVNC;"
-msgstr "RDP;Bureau à distance;xrdp;"
+msgstr ""
 
-#, fuzzy
 msgid ""
 "Mote is a remote desktop client for GNOME specifically designed to connect "
 "to Linux desktops over RDP and VNC. Supported implementations include GNOME "
 "Remote Desktop (including Remote Login), xrdp, KRdp, TigerVNC and wayvnc."
 msgstr ""
-"Mote est un client de bureau à distance pour GNOME spécialement conçu pour "
-"se connecter à des bureaux Linux via RDP. Les implémentations prises en "
-"charge incluent GNOME Remote Desktop (y compris la connexion à distance), "
-"xrdp et KRdp."
 
 msgid ""
 "Designed and tested for full compatibility with GNOME Remote Desktop (and "
@@ -1332,13 +1306,10 @@ msgstr ""
 "Partage du son, du microphone et des dossiers avec les sessions distantes "
 "compatibles"
 
-#, fuzzy
 msgid ""
 "Import existing RDP and VNC files directly into the app or import from "
 "Remmina"
 msgstr ""
-"Importez des fichiers RDP existants directement dans l’application, ou "
-"depuis Remmina"
 
 msgid "A session beside the saved connections"
 msgstr "Une session à côté des connexions enregistrées"
