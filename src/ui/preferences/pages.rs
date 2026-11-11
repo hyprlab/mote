@@ -170,7 +170,11 @@ fn sessions(settings: &Settings, sender: &ComponentSender<Preferences>) -> adw::
 
     let grab = adw::SwitchRow::new();
     grab.set_title(&i18n("Grab Keyboard"));
-    grab.set_subtitle(&i18n("Right Ctrl lets go of the keyboard"));
+    grab.set_subtitle(&if cfg!(target_os = "macos") {
+        i18n("Right Command lets go of the keyboard")
+    } else {
+        i18n("Right Ctrl lets go of the keyboard")
+    });
     grab.set_active(settings.grab_keyboard);
     let out = sender.output_sender().clone();
     grab.connect_active_notify(move |r| out.emit(PrefChange::GrabKeyboard(r.is_active())));

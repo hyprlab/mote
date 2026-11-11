@@ -503,6 +503,10 @@ msgstr "Disposition du clavier"
 msgid "Grab Keyboard"
 msgstr "Capturer le clavier"
 
+#, fuzzy
+msgid "Right Command lets go of the keyboard"
+msgstr "Ctrl droit libère le clavier"
+
 msgid "Right Ctrl lets go of the keyboard"
 msgstr "Ctrl droit libère le clavier"
 
@@ -1168,6 +1172,12 @@ msgstr "Plein écran"
 
 msgid "Desktop of {name}"
 msgstr "Bureau de {name}"
+
+#, fuzzy
+msgid ""
+"Keys and shortcuts go to the remote desktop. Right Command lets go of them."
+msgstr ""
+"Les touches et raccourcis vont au bureau distant. Ctrl droit les libère."
 
 msgid ""
 "Keys and shortcuts go to the remote desktop. Right Ctrl lets go of them."

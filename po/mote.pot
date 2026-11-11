@@ -488,6 +488,9 @@ msgstr ""
 msgid "Grab Keyboard"
 msgstr ""
 
+msgid "Right Command lets go of the keyboard"
+msgstr ""
+
 msgid "Right Ctrl lets go of the keyboard"
 msgstr ""
 
@@ -1095,6 +1098,10 @@ msgid "Fullscreen"
 msgstr ""
 
 msgid "Desktop of {name}"
+msgstr ""
+
+msgid ""
+"Keys and shortcuts go to the remote desktop. Right Command lets go of them."
 msgstr ""
 
 msgid ""

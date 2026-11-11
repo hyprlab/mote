@@ -252,7 +252,11 @@ pub(super) fn present_shortcuts(parent: &adw::ApplicationWindow) {
             vec![
                 (
                     i18n("Let Go of the Keyboard and Show the Header"),
-                    "Control_R",
+                    if cfg!(target_os = "macos") {
+                        "Meta_R"
+                    } else {
+                        "Control_R"
+                    },
                 ),
                 (i18n("Give the Shortcuts Back"), "<Super>Escape"),
             ],
@@ -279,6 +283,10 @@ pub(super) fn present_shortcuts(parent: &adw::ApplicationWindow) {
             #[allow(deprecated)]
             let keys = gtk::ShortcutLabel::new(accel);
             keys.set_valign(gtk::Align::Center);
+            #[cfg(target_os = "macos")]
+            if accel == "Meta_R" {
+                command_key_label(&keys);
+            }
             row.add_suffix(&keys);
             group.add(&row);
         }
@@ -293,4 +301,20 @@ pub(super) fn present_shortcuts(parent: &adw::ApplicationWindow) {
     dialog.set_content_height(640);
     dialog.set_child(Some(&view));
     dialog.present(Some(parent));
+}
+
+/// GTK draws Command as ⌘ beside another key but as "Meta" on its own, the
+/// way Right Command is shown: ⌘ there too, before GTK's side marker.
+#[cfg(target_os = "macos")]
+fn command_key_label(keys: &impl IsA<gtk::Widget>) {
+    let mut child = keys.as_ref().first_child();
+    while let Some(widget) = child {
+        // GTK puts a narrow space before the marker.
+        if let Some(label) = widget.downcast_ref::<gtk::Label>()
+            && let Some(side) = label.label().find(char::is_whitespace)
+        {
+            label.set_label(&format!("⌘{}", &label.label()[side..]));
+        }
+        child = widget.next_sibling();
+    }
 }

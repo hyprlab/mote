@@ -425,9 +425,11 @@ impl Component for Session {
         let (toasts, told) = (model.toasts.clone(), Cell::new(!init.grab_notice));
         model.display.set_on_grabbed(move || {
             if !told.replace(true) {
-                toasts.add_toast(adw::Toast::new(&i18n(
-                    "Keys and shortcuts go to the remote desktop. Right Ctrl lets go of them.",
-                )));
+                toasts.add_toast(adw::Toast::new(&if cfg!(target_os = "macos") {
+                    i18n("Keys and shortcuts go to the remote desktop. Right Command lets go of them.")
+                } else {
+                    i18n("Keys and shortcuts go to the remote desktop. Right Ctrl lets go of them.")
+                }));
             }
         });
         let input = sender.input_sender().clone();

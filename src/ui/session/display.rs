@@ -20,11 +20,9 @@ type InputSink = Rc<dyn Fn(Vec<Input>)>;
 type SizeSink = Rc<dyn Fn()>;
 type GrabSink = Rc<dyn Fn()>;
 
-use keymap::RIGHT_CTRL;
-const RIGHT_CTRL_KEY: Key = Key {
-    scancode: 0xE01D,
-    keysym: 0xFFE4,
-};
+/// Right Ctrl, or Right Command on macOS: see `keymap::HOST_KEY`.
+const HOST_KEYCODE: u32 = keymap::HOST_KEY.0;
+const HOST_KEY: Key = keymap::HOST_KEY.1;
 
 mod imp {
     use super::*;
@@ -290,7 +288,7 @@ impl Display {
     fn send_host_key(&self) {
         if self.imp().host_key.replace(false) && !self.imp().view_only.get() {
             self.apply(Input::Key {
-                key: RIGHT_CTRL_KEY,
+                key: HOST_KEY,
                 down: true,
             });
         }
@@ -633,14 +631,9 @@ fn connect_input(display: &Display) {
         #[upgrade_or]
         glib::Propagation::Proceed,
         move |_, keyval, keycode, _| {
-            if keycode == RIGHT_CTRL {
+            if keycode == HOST_KEYCODE {
                 // Held back until it is clear whether it comes alone.
-                if !display
-                    .imp()
-                    .state
-                    .borrow()
-                    .is_key_down(RIGHT_CTRL_KEY.scancode)
-                {
+                if !display.imp().state.borrow().is_key_down(HOST_KEY.scancode) {
                     display.imp().host_key.set(true);
                 }
                 return glib::Propagation::Stop;
@@ -668,7 +661,7 @@ fn connect_input(display: &Display) {
         #[weak]
         display,
         move |_, keyval, keycode, _| {
-            if keycode == RIGHT_CTRL && display.imp().host_key.replace(false) {
+            if keycode == HOST_KEYCODE && display.imp().host_key.replace(false) {
                 display.imp().let_go.set(true);
                 let sink = display.imp().on_let_go.borrow().clone();
                 if let Some(sink) = sink {

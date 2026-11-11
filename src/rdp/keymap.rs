@@ -3,6 +3,8 @@
 //! on Linux is the evdev code plus 8 and on macOS is Apple's virtual key
 //! code; this maps either to scancodes.
 
+use crate::remote::input::Key;
+
 #[cfg(target_os = "macos")]
 mod mac;
 
@@ -16,11 +18,26 @@ pub(crate) fn from_gtk(keycode: u32) -> Option<u16> {
 #[cfg(target_os = "macos")]
 pub(crate) use mac::from_gtk;
 
-/// GTK's key code for Right Ctrl, the key that lets go of the keyboard.
+/// The key that, pressed and let go alone, lets go of the keyboard: Right
+/// Ctrl, or on macOS Right Command, as a MacBook has no Right Control. Its
+/// key code from GTK, and the key it is on the server when it comes with
+/// another (Right Super for Right Command).
 #[cfg(not(target_os = "macos"))]
-pub(crate) const RIGHT_CTRL: u32 = 97 + 8;
+pub(crate) const HOST_KEY: (u32, Key) = (
+    97 + 8,
+    Key {
+        scancode: 0xE01D,
+        keysym: 0xFFE4, // Control_R
+    },
+);
 #[cfg(target_os = "macos")]
-pub(crate) const RIGHT_CTRL: u32 = 0x3E;
+pub(crate) const HOST_KEY: (u32, Key) = (
+    0x36,
+    Key {
+        scancode: 0xE05C,
+        keysym: 0xFFEC, // Super_R
+    },
+);
 
 /// Whether the key toggles a lock that macOS reports as pressed when it
 /// turns on and released when it turns off: each of those is a whole tap.
