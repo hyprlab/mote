@@ -4,6 +4,22 @@ A remote desktop client for GNOME, for Linux machines that run GNOME Remote
 Desktop, xrdp, KRdp or a VNC server, and for Macs. Each section below is
 what a release brought; the detail is in the commit history.
 
+## What's new in 1.5.0-beta.1
+
+### New features:
+
+- Mote for macOS on Apple silicon
+- Automatic updates on macOS
+- Sound on macOS
+- H.264 video on macOS
+- Passwords kept in the macOS Keychain
+- macOS shortcuts sent to a session that has the keyboard
+- New app icon
+
+### Translations:
+
+- French updated by @frenchy82 - (#3)
+
 ## What's new in 1.4.0
 
 ### New features:

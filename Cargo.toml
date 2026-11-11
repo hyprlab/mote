@@ -1,6 +1,6 @@
 [package]
 name = "mote"
-version = "1.4.0"
+version = "1.5.0-beta.1"
 edition = "2024"
 description = "A GNOME-native remote desktop client for Linux machines running RDP"
 license = "AGPL-3.0-or-later"

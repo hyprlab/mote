@@ -4,7 +4,7 @@
 %global debug_package %{nil}
 
 Name:           mote
-Version:        1.4.0
+Version:        1.5.0~beta.1
 Release:        1%{?dist}
 Summary:        Connect to Linux desktops over RDP and VNC
 License:        AGPL-3.0-or-later
@@ -73,6 +73,11 @@ done
 %{_datadir}/icons/hicolor/symbolic/apps/%{appid}-symbolic.svg
 
 %changelog
+* Wed Nov 11 2026 Hyprlab <hyprlab@proton.me> - 1.5.0~beta.1-1
+- A macOS app that updates itself
+- A new app icon
+- The French translation brought up to date
+
 * Sun Nov 08 2026 Hyprlab <hyprlab@proton.me> - 1.4.0-1
 - VNC (macOS) in the connection editor's protocol list
 - Connection Info window from the session menu
