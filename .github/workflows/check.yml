@@ -1,0 +1,46 @@
+name: Check
+
+# Every push and pull request is built, linted and tested on both platforms
+# Mote ships for: GNOME, on Debian 13 (the oldest GTK and libadwaita the app
+# supports), and macOS. A change made for one has to leave the other
+# building and passing; this is where that shows.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gnome:
+    name: GNOME
+    runs-on: ubuntu-latest
+    container: docker.io/library/rust:1-trixie
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the build dependencies
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            build-essential pkg-config gettext libgtk-4-dev libadwaita-1-dev >/dev/null
+          rustup component add clippy
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test
+
+  macos:
+    name: macOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the build dependencies
+        run: brew install gtk4 libadwaita pkgconf
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test
+      - name: App bundle
+        run: tools/build-macos-app.sh
