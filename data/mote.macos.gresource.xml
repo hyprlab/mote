@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- mote.gresource.xml for the macOS build (build.rs picks it): the same
+     icons, except that the app's own is drawn on Apple's grid, as the
+     bundle's is. -->
+<gresources>
+  <gresource prefix="/co/hyprlab/Mote">
+    <file alias="icons/scalable/apps/co.hyprlab.Mote.svg">icons/src/macos.svg</file>
+    <file alias="icons/scalable/apps/co.hyprlab.Mote.Beta.svg">icons/hicolor/scalable/apps/co.hyprlab.Mote.Beta.svg</file>
+    <file alias="icons/symbolic/apps/co.hyprlab.Mote-symbolic.svg">icons/hicolor/symbolic/apps/co.hyprlab.Mote-symbolic.svg</file>
+  </gresource>
+</gresources>

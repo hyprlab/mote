@@ -1,4 +1,5 @@
-//! Compile the app icon (data/mote.gresource.xml) into a `.gresource` blob
+//! Compile the app icon (data/mote.gresource.xml, or on macOS
+//! data/mote.macos.gresource.xml) into a `.gresource` blob
 //! that is embedded in the binary and registered at startup (see `main.rs`),
 //! and copy the credits files for the About window to read.
 
@@ -12,7 +13,12 @@ fn main() {
         let text = std::fs::read_to_string(format!("data/{name}")).unwrap_or_default();
         std::fs::write(out.join(name), text).expect("writes the credits file");
     }
-    println!("cargo:rerun-if-changed=data/mote.gresource.xml");
-    println!("cargo:rerun-if-changed=data/icons/hicolor");
-    glib_build_tools::compile_resources(&["data"], "data/mote.gresource.xml", "mote.gresource");
+    // The build script runs on the host, so the target is asked for here
+    // rather than with cfg!.
+    let resources = if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        "data/mote.macos.gresource.xml"
+    } else {
+        "data/mote.gresource.xml"
+    };
+    glib_build_tools::compile_resources(&["data"], resources, "mote.gresource");
 }

@@ -30,17 +30,15 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "target/$PROFILE/mote" "$APP/Contents/MacOS/Mote"
 
-# The icon, at every size iconutil wants, from the 512 px PNG.
+# The icon, at every size iconutil wants, from the 1024 px macOS one.
 ICONSET="$(mktemp -d)/Mote.iconset"
 mkdir -p "$ICONSET"
-SOURCE=data/icons/hicolor/512x512/apps/co.hyprlab.Mote.png
+SOURCE=data/icons/macos/co.hyprlab.Mote.png
 for size in 16 32 128 256 512; do
   sips -z "$size" "$size" "$SOURCE" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
   double=$((size * 2))
-  [ "$double" -le 512 ] &&
-    sips -z "$double" "$double" "$SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+  sips -z "$double" "$double" "$SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
-cp "$SOURCE" "$ICONSET/icon_512x512@2x.png"
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Mote.icns"
 rm -rf "$(dirname "$ICONSET")"
 

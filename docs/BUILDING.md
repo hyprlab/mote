@@ -229,11 +229,15 @@ connections.
 
 The icon's master is `data/icons/src/default.svg`, drawn on GNOME's 128 pixel
 icon grid, and `default.Devel.svg` is the beta's: the same with a hazard stripe.
-After changing either, run `tools/gen-app-icons.py` (it needs python3-gobject
-with librsvg and pycairo): it copies them into hicolor as the scalable icons
-and renders the 256 and 512 pixel PNGs and the README artwork in `data/repo/`. The symbolic icon in `data/icons/hicolor/symbolic/apps` is
-drawn by hand. The build embeds both SVGs in the binary, so About shows the
-icon without an install.
+The macOS app has its own, `macos.svg`, drawn on Apple's icon grid. After
+changing any of them, run `tools/gen-app-icons.py` (it needs python3-gobject
+with librsvg and pycairo). It copies the GNOME ones into hicolor as the
+scalable icons and renders the 256 and 512 pixel PNGs and the README artwork
+in `data/repo/`. It renders the macOS one as the 1024 pixel PNG in
+`data/icons/macos`, which `tools/build-macos-app.sh` makes the bundle's icon
+from. The symbolic icon in `data/icons/hicolor/symbolic/apps` is drawn by
+hand. The build embeds the SVGs in the binary, the macOS one in the macOS
+build, so About shows the icon without an install.
 
 ## Connection robots
 

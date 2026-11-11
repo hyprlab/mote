@@ -5,7 +5,10 @@ default.svg is the stable app's, default.Devel.svg the same with the beta's
 hazard stripe, GNOME's styling for a development build. Each master is drawn
 on GNOME's 128 pixel app icon grid. It becomes the scalable hicolor icon and
 256 and 512 pixel PNGs beside it for anything that wants a bitmap, and the
-stable one the README artwork, data/repo/logo.png. The PNGs are
+stable one the README artwork, data/repo/logo.png. macos.svg is the macOS
+app's, drawn on Apple's icon grid instead; it becomes the 1024 pixel PNG in
+data/icons/macos that tools/build-macos-app.sh turns into the bundle's
+icon, and the macOS build embeds it for About. The PNGs are
 rendered with librsvg, the renderer GNOME uses, so they match what the
 desktop draws from the SVG.
 
@@ -45,3 +48,4 @@ for source, app_id in SHIPPED.items():
     for size in (256, 512):
         render(master, HICOLOR / f"{size}x{size}/apps/{app_id}.png", size)
 render(SOURCES / "default.svg", ROOT / "data/repo/logo.png", 512)
+render(SOURCES / "macos.svg", ROOT / "data/icons/macos/co.hyprlab.Mote.png", 1024)
