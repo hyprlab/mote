@@ -51,6 +51,10 @@ fn main() {
     }
     register_resources();
     paths::move_from_sandbox();
+    // GTK's macOS app menu says "About", "Hide" and "Quit" followed by this,
+    // which is otherwise the program's file name.
+    #[cfg(target_os = "macos")]
+    gtk::glib::set_application_name(APP_NAME);
 
     let app = relm4::RelmApp::new(APP_ID);
     // relm4 sets the ID on an application it has already built, too late

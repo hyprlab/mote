@@ -173,9 +173,10 @@ impl Component for AppModel {
                     set_sidebar = &adw::ToolbarView {
                         add_top_bar = &adw::HeaderBar {
                             add_css_class: "flat",
+                            // macOS names the app in its menu bar already.
                             #[wrap(Some)]
                             set_title_widget = &gtk::Label {
-                                set_label: APP_NAME,
+                                set_label: if cfg!(target_os = "macos") { "" } else { APP_NAME },
                                 add_css_class: "app-title",
                             },
                             pack_start = &gtk::Button {
