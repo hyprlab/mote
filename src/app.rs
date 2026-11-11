@@ -7,6 +7,8 @@ mod actions;
 mod details;
 mod files;
 mod groups;
+#[cfg(target_os = "macos")]
+mod macos;
 mod sessions;
 mod showcase;
 mod sidebar;
@@ -349,6 +351,8 @@ impl Component for AppModel {
         gtk::Window::set_default_icon_name(crate::APP_ID);
         let settings = config::load_settings();
         apply_color_scheme(settings.color_scheme);
+        #[cfg(target_os = "macos")]
+        macos::apply_text_size();
         crate::rdp::h264::choose(settings.decoder);
         let window = settings.window.clone();
 
