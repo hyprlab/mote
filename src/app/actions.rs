@@ -7,9 +7,11 @@ use relm4::prelude::*;
 use super::{AppModel, AppMsg};
 use crate::config::SortOrder;
 use crate::i18n::i18n;
+use crate::platform;
 use crate::ui::preferences::PrefChange;
 
 /// `win.<name>` actions and the message each sends, with their shortcuts.
+/// `<Control>` is Command on macOS: see `platform::accel`.
 const ACTIONS: &[(&str, &[&str])] = &[
     ("new-connection", &["<Control>n"]),
     ("import-rdp", &["<Control>o"]),
@@ -57,7 +59,7 @@ pub(super) fn install(
     let shortcuts = gtk::ShortcutController::new();
     let add = |accel: &str, action: &str| {
         shortcuts.add_shortcut(gtk::Shortcut::new(
-            gtk::ShortcutTrigger::parse_string(accel),
+            gtk::ShortcutTrigger::parse_string(&platform::accel(accel)),
             Some(gtk::NamedAction::new(action)),
         ));
     };
@@ -137,6 +139,18 @@ pub(super) fn install(
         })
         .build();
     app.add_action_entries([quit]);
+    // The app menu GTK puts in the macOS menu bar names these two.
+    #[cfg(target_os = "macos")]
+    for (name, message) in [
+        ("about", (|| AppMsg::About) as fn() -> AppMsg),
+        ("preferences", || AppMsg::OpenSettings),
+    ] {
+        let input = sender.input_sender().clone();
+        let action = gio::ActionEntry::builder(name)
+            .activate(move |_: &adw::Application, _, _| input.emit(message()))
+            .build();
+        app.add_action_entries([action]);
+    }
 }
 
 /// A menu item with its shortcut shown beside it. The menu can't find the
@@ -144,22 +158,26 @@ pub(super) fn install(
 fn item(label: &str, action: &str, accel: Option<&str>) -> gio::MenuItem {
     let item = gio::MenuItem::new(Some(label), Some(action));
     if let Some(accel) = accel {
-        item.set_attribute_value("accel", Some(&accel.to_variant()));
+        item.set_attribute_value("accel", Some(&platform::accel(accel).to_variant()));
     }
     item
 }
 
 /// The burger menu above the sidebar, in Hylki's order: Settings first,
-/// then what the app does, then About, and Quit on its own.
+/// then what the app does, then About, and Quit on its own. On macOS the
+/// app menu in the menu bar has Settings, About and Quit.
 pub(super) fn main_menu() -> gio::Menu {
+    let mac = cfg!(target_os = "macos");
     let menu = gio::Menu::new();
-    let settings = gio::Menu::new();
-    settings.append_item(&item(
-        &i18n("Settings"),
-        "win.settings",
-        Some("<Control>comma"),
-    ));
-    menu.append_section(None, &settings);
+    if !mac {
+        let settings = gio::Menu::new();
+        settings.append_item(&item(
+            &i18n("Settings"),
+            "win.settings",
+            Some("<Control>comma"),
+        ));
+        menu.append_section(None, &settings);
+    }
     menu.append_section(None, &import_menu());
     let help = gio::Menu::new();
     help.append_item(&item(
@@ -167,11 +185,15 @@ pub(super) fn main_menu() -> gio::Menu {
         "win.shortcuts",
         Some("<Control>question"),
     ));
-    help.append(Some(&i18n("About Mote")), Some("win.about"));
+    if !mac {
+        help.append(Some(&i18n("About Mote")), Some("win.about"));
+    }
     menu.append_section(None, &help);
-    let quit = gio::Menu::new();
-    quit.append_item(&item(&i18n("Quit"), "app.quit", Some("<Control>q")));
-    menu.append_section(None, &quit);
+    if !mac {
+        let quit = gio::Menu::new();
+        quit.append_item(&item(&i18n("Quit"), "app.quit", Some("<Control>q")));
+        menu.append_section(None, &quit);
+    }
     menu
 }
 
@@ -209,10 +231,13 @@ pub(super) fn import_menu() -> gio::Menu {
         "win.import-rdp",
         Some("<Control>o"),
     ));
-    menu.append(
-        Some(&i18n("Import from Remmina")),
-        Some("win.import-remmina"),
-    );
+    // Remmina is a Linux app.
+    if !cfg!(target_os = "macos") {
+        menu.append(
+            Some(&i18n("Import from Remmina")),
+            Some("win.import-remmina"),
+        );
+    }
     menu
 }
 
@@ -276,12 +301,16 @@ pub(super) fn present_shortcuts(parent: &adw::ApplicationWindow) {
         let group = adw::PreferencesGroup::new();
         group.set_title(&title);
         for (label, accel) in items {
+            // GNOME Shell's: macOS has no shortcuts to give back.
+            if cfg!(target_os = "macos") && accel == "<Super>Escape" {
+                continue;
+            }
             let row = adw::ActionRow::new();
             row.set_title(&label);
             // Deprecated for libadwaita 1.8's AdwShortcutLabel, which
             // Debian 13 doesn't have yet.
             #[allow(deprecated)]
-            let keys = gtk::ShortcutLabel::new(accel);
+            let keys = gtk::ShortcutLabel::new(&platform::accel(accel));
             keys.set_valign(gtk::Align::Center);
             #[cfg(target_os = "macos")]
             if accel == "Meta_R" {

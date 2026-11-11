@@ -97,7 +97,10 @@ pub(super) fn menu(detached: bool) -> gio::Menu {
         Some(&i18n_f("Quit {name}", &[("name", &crate::APP_NAME)])),
         Some("app.quit"),
     );
-    item.set_attribute_value("accel", Some(&"<Control>q".to_variant()));
+    item.set_attribute_value(
+        "accel",
+        Some(&crate::platform::accel("<Control>q").to_variant()),
+    );
     quit.append_item(&item);
     menu.append_section(None, &quit);
     menu

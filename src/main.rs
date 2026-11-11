@@ -10,6 +10,7 @@ mod connection;
 mod i18n;
 mod import;
 mod paths;
+mod platform;
 mod rdp;
 mod remote;
 mod scan;
