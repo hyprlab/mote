@@ -9,6 +9,8 @@ mod config;
 mod connection;
 mod i18n;
 mod import;
+#[cfg(target_os = "macos")]
+mod macos;
 mod paths;
 mod platform;
 mod rdp;
@@ -38,6 +40,11 @@ const APP_NAME: &str = if cfg!(feature = "beta") {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
+    // SAFETY: nothing else runs yet.
+    #[cfg(target_os = "macos")]
+    unsafe {
+        macos::prepare();
+    }
     i18n::init();
     tracing_subscriber::fmt()
         .with_env_filter(

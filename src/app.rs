@@ -352,7 +352,11 @@ impl Component for AppModel {
         let settings = config::load_settings();
         apply_color_scheme(settings.color_scheme);
         #[cfg(target_os = "macos")]
-        macos::apply_text_size();
+        {
+            macos::apply_text_size();
+            crate::macos::rebind_toolkit_translations();
+            crate::macos::updates::start();
+        }
         crate::rdp::h264::choose(settings.decoder);
         let window = settings.window.clone();
 

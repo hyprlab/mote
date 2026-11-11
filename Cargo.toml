@@ -107,6 +107,10 @@ oo7 = { version = "0.6", default-features = false, features = ["tokio", "native_
 [target.'cfg(target_os = "macos")'.dependencies]
 # The Keychain, where macOS keeps passwords.
 security-framework = "3"
+# AppKit and Foundation, for the language macOS is set to and for Sparkle,
+# which updates the app.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSBundle", "NSEnumerator", "NSLocale", "NSString"] }
 
 [build-dependencies]
 glib-build-tools = "0.22"
