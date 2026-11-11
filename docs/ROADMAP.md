@@ -956,12 +956,16 @@ own modules ([CONTRIBUTING.md](CONTRIBUTING.md#two-platforms)).
   Sparkle from the appcast on mote.hyprlab.co.
 - A disk image, built, signed and run from the disk image without Homebrew
   by the release workflow, beside the Linux packages.
-- Still to come: sound through CoreAudio; H.264 through VideoToolbox; the
-  macOS shortcuts a session should keep (Command-Tab), which takes the
-  Accessibility permission.
+- Sound and the microphone through Audio Queue Services, and Opus.
+- H.264 through VideoToolbox, AVC444 included.
+- With Grab Keyboard on, macOS's own shortcuts (Command-Tab, Command-Space,
+  Control and the arrows, the app menu's) go to the session, through an event
+  tap that takes the Accessibility permission.
 
 Built: against xrdp from a MacBook on macOS 27, both through the engine's
-own test and in the app, and against GNOME Remote Login on Fedora.
+own test and in the app, and against GNOME Remote Login on Fedora; sound and
+H.264 through VideoToolbox (AVC420, 30 frames a second at about 3 ms each)
+against xrdp; an update through Sparkle, from one signed build to the next.
 
 ## Remmina parity
 

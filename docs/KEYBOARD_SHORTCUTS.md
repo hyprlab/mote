@@ -35,3 +35,17 @@ leaves the desktop keeps the keyboard until its button is let go.
 Keys the desktop would keep even then go from the session menu's
 **Send Keys**: Ctrl+Alt+Delete, Super, Alt+Tab, Print Screen and Ctrl+Alt+F1
 to F12.
+
+## On macOS
+
+The shortcuts above take <kbd>Command</kbd> in place of <kbd>Ctrl</kbd>, and
+About, Settings and Quit are in the Mote menu. In a session, Command is the
+remote desktop's Super and Option its Alt, and <kbd>Right Command</kbd>,
+alone, lets go of the keyboard, as a MacBook has no Right Ctrl.
+
+With **Grab Keyboard** on, macOS's own shortcuts go to the remote desktop
+too: Command-Tab, Command-Space, Control and the arrows, and the Mote menu's
+Command-Q and Command-H. That needs the Accessibility permission, which macOS
+asks for the first time a session takes the keyboard (System Settings >
+Privacy & Security > Accessibility); without it, the session gets every key
+but those.

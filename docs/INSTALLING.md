@@ -114,7 +114,10 @@ malware, and offers only to move it to the Trash. To open it anyway, once:
 From then on it opens like any other app, and updates itself: at its second
 launch it asks whether to check for updates on its own, and Mote > Check for
 Updates checks at once. An update installs without macOS asking again.
-Passwords are kept in the Keychain.
+Passwords are kept in the Keychain. The first time a session takes the
+keyboard, macOS asks to give Mote the Accessibility permission, which keeps
+Command-Tab and macOS's other shortcuts for the remote desktop
+([Keyboard shortcuts](KEYBOARD_SHORTCUTS.md#on-macos)).
 
 ## Beta channel
 
