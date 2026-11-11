@@ -27,9 +27,6 @@ tracing = "0.1"
 # Profiles and settings are TOML in the user's config directory.
 serde = { version = "1", features = ["derive"] }
 toml = "1"
-# GNOME's Secret Service client: the keyring on the host, the secret portal
-# inside Flatpak. Async on tokio, the runtime relm4's commands already run.
-oo7 = { version = "0.6", default-features = false, features = ["tokio", "native_crypto"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # The RDP engine. The `ironrdp` umbrella crate lags its parts (it pins an
 # older connector), so the parts are named one by one, all from one release.
@@ -101,6 +98,15 @@ sha1 = "0.10"
 sha2 = "0.10"
 md-5 = "0.10"
 pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+# GNOME's Secret Service client: the keyring on the host, the secret portal
+# inside Flatpak. Async on tokio, the runtime relm4's commands already run.
+oo7 = { version = "0.6", default-features = false, features = ["tokio", "native_crypto"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# The Keychain, where macOS keeps passwords.
+security-framework = "3"
 
 [build-dependencies]
 glib-build-tools = "0.22"

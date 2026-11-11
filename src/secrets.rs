@@ -1,13 +1,26 @@
 //! Connection passwords, in the desktop's Secret Service (GNOME Keyring or
 //! KWallet), for every kind of install: the Flatpak talks to it too, rather
 //! than keeping a keyring of its own in its sandbox, so a package and the
-//! Flatpak find the same passwords. Each item is found by the connection's
-//! id, so renaming a connection keeps its password.
+//! Flatpak find the same passwords. On macOS they are in the Keychain. Each
+//! item is found by the connection's id, so renaming a connection keeps its
+//! password.
 //!
 //! Everything here is async and runs on relm4's command runtime, never on
 //! the GTK main thread: an unlock prompt can take as long as the user does.
 
 use zeroize::Zeroizing;
+
+#[cfg(target_os = "macos")]
+mod keychain;
+#[cfg(not(target_os = "macos"))]
+mod secret_service;
+
+#[cfg(target_os = "macos")]
+use keychain as store;
+#[cfg(not(target_os = "macos"))]
+use secret_service as store;
+#[cfg(not(target_os = "macos"))]
+pub(crate) use secret_service::move_from_sandbox;
 
 /// Who the keyring's items belong to. The stable app's ID in the beta app
 /// too, which shares its connections and so needs their passwords.
@@ -54,77 +67,13 @@ impl Secret {
     }
 }
 
-/// The Secret Service's default collection. `oo7::Keyring::new` would pick
-/// a file in the sandbox inside Flatpak.
-async fn keyring() -> Result<oo7::Keyring, String> {
-    let service = oo7::dbus::Service::new().await.map_err(|e| e.to_string())?;
-    let collection = service
-        .default_collection()
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(oo7::Keyring::DBus(collection))
-}
-
-/// Inside Flatpak, move the passwords an earlier version kept in the
-/// sandbox's keyring file to the Secret Service, leaving any already
-/// there. The file is renamed once its passwords are across.
-pub(crate) async fn move_from_sandbox() -> Result<(), String> {
-    if std::env::var_os("FLATPAK_ID").is_none() {
-        return Ok(());
-    }
-    // Where oo7 0.6 keeps it: `oo7::Keyring::new` below opens this file.
-    let file = gtk::glib::user_data_dir().join("keyrings/default.keyring");
-    if !file.is_file() {
-        return Ok(());
-    }
-    // In the sandbox, this is that file, opened with the portal's key.
-    let sandbox = oo7::Keyring::new().await.map_err(|e| e.to_string())?;
-    if matches!(sandbox, oo7::Keyring::DBus(_)) {
-        return Ok(());
-    }
-    let host = keyring().await?;
-    let items = sandbox
-        .search_items(&[("application", KEYRING_APP)])
-        .await
-        .map_err(|e| e.to_string())?;
-    let mut moved = 0;
-    for item in items {
-        let attributes = item.attributes().await.map_err(|e| e.to_string())?;
-        let there = host
-            .search_items(&attributes)
-            .await
-            .map_err(|e| e.to_string())?;
-        if there.is_empty() {
-            let label = item.label().await.map_err(|e| e.to_string())?;
-            let secret = item.secret().await.map_err(|e| e.to_string())?;
-            host.create_item(&label, &attributes, secret, false)
-                .await
-                .map_err(|e| e.to_string())?;
-            moved += 1;
-        }
-    }
-    std::fs::rename(&file, file.with_extension("keyring.moved")).map_err(|e| e.to_string())?;
-    tracing::info!("moved {moved} passwords from the sandbox's keyring");
-    Ok(())
-}
-
-fn attributes(id: &str, kind: Secret) -> [(&'static str, &str); 2] {
-    [("application", KEYRING_APP), (kind.attribute(), id)]
-}
-
 /// The saved password, or `None` when there is none.
 pub(crate) async fn password(id: String, kind: Secret) -> Result<Option<Password>, String> {
-    let keyring = keyring().await?;
-    let items = keyring
-        .search_items(&attributes(&id, kind))
-        .await
-        .map_err(|e| e.to_string())?;
-    let Some(item) = items.first() else {
+    let Some(mut secret) = store::get(&id, kind).await? else {
         return Ok(None);
     };
-    let secret = item.secret().await.map_err(|e| e.to_string())?;
     // The bytes move into the string, or are wiped when they aren't text.
-    match String::from_utf8(secret.to_vec()) {
+    match String::from_utf8(std::mem::take(&mut *secret)) {
         Ok(text) => Ok(Some(Zeroizing::new(text))),
         Err(e) => {
             drop(Zeroizing::new(e.into_bytes()));
@@ -140,32 +89,16 @@ pub(crate) async fn set_password(
     title: String,
     password: Password,
 ) -> Result<(), String> {
-    let keyring = keyring().await?;
     if password.is_empty() {
-        return keyring
-            .delete(&attributes(&id, kind))
-            .await
-            .map_err(|e| e.to_string());
+        return store::delete(&id, kind).await;
     }
-    keyring
-        .create_item(
-            &kind.label(&title),
-            &attributes(&id, kind),
-            password.as_str(),
-            true,
-        )
-        .await
-        .map_err(|e| e.to_string())
+    store::set(&id, kind, &kind.label(&title), &password).await
 }
 
 /// Forget every password the connection has.
 pub(crate) async fn delete_passwords(id: String) -> Result<(), String> {
-    let keyring = keyring().await?;
     for kind in Secret::ALL {
-        keyring
-            .delete(&attributes(&id, kind))
-            .await
-            .map_err(|e| e.to_string())?;
+        store::delete(&id, kind).await?;
     }
     Ok(())
 }
@@ -178,4 +111,33 @@ pub(crate) async fn copy_passwords(from: String, to: String, title: String) -> R
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Saves, reads and forgets a password in the real store. Ignored: it
+    /// needs an unlocked keyring, which on macOS is only the logged-in
+    /// session's, not an SSH login's.
+    #[tokio::test]
+    #[ignore]
+    async fn live_store() {
+        let id = "mote-test-store".to_owned();
+        let saved = Password::new("pa55 wörd".to_owned());
+        set_password(id.clone(), Secret::Ssh, "Test".into(), saved.clone())
+            .await
+            .unwrap();
+        // Saving again replaces the item, under a new title too.
+        set_password(id.clone(), Secret::Ssh, "Renamed".into(), saved.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            password(id.clone(), Secret::Ssh).await.unwrap(),
+            Some(saved)
+        );
+        assert_eq!(password(id.clone(), Secret::Account).await.unwrap(), None);
+        delete_passwords(id.clone()).await.unwrap();
+        assert_eq!(password(id, Secret::Ssh).await.unwrap(), None);
+    }
 }

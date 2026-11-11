@@ -338,6 +338,7 @@ impl Component for AppModel {
             let _ = std::fs::remove_dir_all(crate::ui::session::fetched_files());
         });
         // Passwords an earlier Flatpak version kept in its sandbox.
+        #[cfg(not(target_os = "macos"))]
         relm4::spawn(async {
             if let Err(e) = crate::secrets::move_from_sandbox().await {
                 tracing::warn!("moving the sandbox's passwords: {e}");
