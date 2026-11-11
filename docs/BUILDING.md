@@ -99,7 +99,7 @@ sed "s|^Exec=mote$|Exec=$PWD/target/debug/mote|" data/co.hyprlab.Mote.desktop \
 On a Mac with Apple silicon and [Homebrew](https://brew.sh):
 
 ```sh
-brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg gettext pkgconf rustup
+brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg opus gettext pkgconf rustup
 rustup default stable
 tools/build-macos-app.sh
 open target/debug/Mote.app

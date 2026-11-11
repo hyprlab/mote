@@ -1,6 +1,6 @@
 //! Opus decoding through libopus, loaded at run time: GNOME Remote Desktop
 //! sends a twelfth of the bandwidth with it than with PCM. Distributions
-//! and the Flatpak's runtime carry the library.
+//! and the Flatpak's runtime carry the library, and so does the macOS app.
 
 use std::ffi::{c_int, c_void};
 use std::sync::OnceLock;
@@ -9,6 +9,17 @@ use libloading::Library;
 
 /// The longest packet Opus makes: 120 ms at 48 kHz.
 const MAX_FRAMES: usize = 5760;
+
+/// Where libopus is: by its name on Linux; on macOS in the app's
+/// Frameworks (the binary's @rpath), or Homebrew's for a bare binary.
+const LIBRARIES: &[&str] = if cfg!(target_os = "macos") {
+    &[
+        "@rpath/libopus.0.dylib",
+        "/opt/homebrew/lib/libopus.0.dylib",
+    ]
+} else {
+    &["libopus.so.0"]
+};
 
 struct Api {
     create: unsafe extern "C" fn(i32, c_int, *mut c_int) -> *mut c_void,
@@ -21,17 +32,24 @@ struct Api {
 fn api() -> Option<&'static Api> {
     static API: OnceLock<Option<Api>> = OnceLock::new();
     API.get_or_init(|| {
-        // SAFETY: the library by that name is libopus.
-        let loaded = unsafe {
-            Library::new("libopus.so.0").and_then(|library| {
-                Ok(Api {
-                    create: *library.get(b"opus_decoder_create\0")?,
-                    decode: *library.get(b"opus_decode\0")?,
-                    destroy: *library.get(b"opus_decoder_destroy\0")?,
-                    _library: library,
+        let mut loaded = Err(String::new());
+        for name in LIBRARIES {
+            // SAFETY: the library by that name is libopus.
+            loaded = unsafe {
+                Library::new(name).and_then(|library| {
+                    Ok(Api {
+                        create: *library.get(b"opus_decoder_create\0")?,
+                        decode: *library.get(b"opus_decode\0")?,
+                        destroy: *library.get(b"opus_decoder_destroy\0")?,
+                        _library: library,
+                    })
                 })
-            })
-        };
+            }
+            .map_err(|e| e.to_string());
+            if loaded.is_ok() {
+                break;
+            }
+        }
         match loaded {
             Ok(api) => Some(api),
             Err(e) => {

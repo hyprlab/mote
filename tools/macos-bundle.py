@@ -217,9 +217,17 @@ def main():
     languages = sorted(p.stem for p in (ROOT / "po").glob("*.po"))
     copy_data(contents / "Resources", languages)
     loader, origin = svg_loader(contents)
-    libraries = bundle_libraries([(executable, executable), (loader, origin)], contents / "Frameworks")
+    # libopus, which Mote loads when it starts rather than links.
+    frameworks = contents / "Frameworks"
+    frameworks.mkdir(parents=True, exist_ok=True)
+    opus_origin = Path(os.path.realpath(BREW / "lib/libopus.0.dylib"))
+    opus = frameworks / "libopus.0.dylib"
+    shutil.copyfile(opus_origin, opus)
+    opus.chmod(0o755)
+    libraries = bundle_libraries([(executable, executable), (loader, origin), (opus, opus_origin)],
+                                 frameworks)
     write_loader_cache(contents, loader)
-    everything = [executable, loader] + libraries
+    everything = [executable, loader, opus] + libraries
     check_self_contained(everything)
     plist_path = contents / "Info.plist"
     plist = plistlib.loads(plist_path.read_bytes())

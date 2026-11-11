@@ -267,7 +267,7 @@ jobs:
           ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Install the build dependencies
-        run: brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg gettext pkgconf
+        run: brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg opus gettext pkgconf
 
       - name: Set up the signing certificate
         # Mote's own certificate (tools/macos-signing.sh), from the

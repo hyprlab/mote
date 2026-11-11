@@ -1,10 +1,18 @@
 //! The remote desktop's sound, played here (MS-RDPEA), and the microphone,
 //! sent there (MS-RDPEAI). IronRDP's channels speak the protocol; a thread
 //! per stream plays or records through PulseAudio's API, as PipeWire serves
-//! it, so a slow sound server never holds up the session.
+//! it, so a slow sound server never holds up the session. On macOS the
+//! same calls go to Audio Queue Services instead.
 
+#[cfg(target_os = "macos")]
+mod coreaudio;
 mod opus;
+#[cfg(not(target_os = "macos"))]
 mod pulse;
+#[cfg(target_os = "macos")]
+use coreaudio as backend;
+#[cfg(not(target_os = "macos"))]
+use pulse as backend;
 
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -85,7 +93,7 @@ pub(super) struct Audio {
 
 impl Audio {
     pub(super) fn new(play: bool, record: bool) -> Self {
-        let available = (play || record) && pulse::available();
+        let available = (play || record) && backend::available();
         let (uplink, packets) = tokio_mpsc::unbounded_channel();
         Self {
             play: play && available,
@@ -320,7 +328,7 @@ impl RdpsndClientHandler for Speaker {
 /// The sound thread: opens a stream for each format the server sends in,
 /// and ends with the channel.
 fn play(queue: &mpsc::Receiver<Play>, latency: &AtomicU64) {
-    let mut stream: Option<((u32, u8), pulse::Stream)> = None;
+    let mut stream: Option<((u32, u8), backend::Stream)> = None;
     let mut decoder: Option<((u32, u8), opus::Decoder)> = None;
     while let Ok(block) = queue.recv() {
         let (rate, channels, data) = match block {
@@ -357,7 +365,7 @@ fn play(queue: &mpsc::Receiver<Play>, latency: &AtomicU64) {
             .is_none_or(|(spec, _)| *spec != (rate, channels))
         {
             stream = None;
-            match pulse::Stream::play("Remote Desktop", rate, channels, PLAY_AHEAD) {
+            match backend::Stream::play("Remote Desktop", rate, channels, PLAY_AHEAD) {
                 Ok(opened) => {
                     tracing::debug!("playing sound at {rate} Hz, {channels} channels");
                     stream = Some(((rate, channels), opened));
@@ -413,14 +421,14 @@ impl RdpeaiCaptureHandler for Microphone {
             return E_FAIL;
         }
         let (rate, channels) = (encode.n_samples_per_sec, encode.n_channels as u8);
-        let stream = match pulse::Stream::record("Remote Desktop", rate, channels, CAPTURE_FRAGMENT)
-        {
-            Ok(stream) => stream,
-            Err(e) => {
-                tracing::warn!("recording the microphone: {e}");
-                return E_FAIL;
-            }
-        };
+        let stream =
+            match backend::Stream::record("Remote Desktop", rate, channels, CAPTURE_FRAGMENT) {
+                Ok(stream) => stream,
+                Err(e) => {
+                    tracing::warn!("recording the microphone: {e}");
+                    return E_FAIL;
+                }
+            };
         tracing::debug!(
             "sending the microphone at {rate} Hz, {channels} channels, {packet_size} bytes a packet"
         );
@@ -462,7 +470,7 @@ impl Drop for Microphone {
 }
 
 fn record(
-    mut stream: pulse::Stream,
+    mut stream: backend::Stream,
     packet_size: usize,
     mut sink: AudioPacketSink,
     stop: &AtomicBool,

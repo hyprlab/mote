@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install the build dependencies
-        run: brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg gettext pkgconf
+        run: brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg opus gettext pkgconf
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
       - name: Tests
