@@ -23,7 +23,9 @@ pub(super) unsafe fn prepare() {
         .regionCode()
         .map(|code| code.to_string());
     let (lang, language) = environment(&preferred, region.as_deref(), |locale| {
-        std::path::Path::new("/usr/share/locale").join(locale).is_dir()
+        std::path::Path::new("/usr/share/locale")
+            .join(locale)
+            .is_dir()
     });
     // SAFETY: the caller's.
     unsafe {
