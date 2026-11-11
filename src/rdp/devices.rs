@@ -12,6 +12,10 @@ use nix::fcntl::{AtFlags, OFlag, open, openat};
 use nix::sys::stat::{FileStat, Mode, SFlag, fstatat};
 use nix::unistd::{UnlinkatFlags, unlinkat};
 
+/// A file's device and inode, which tell it from another put in its place.
+/// `dev_t` is 64 bits on Linux and 32 on macOS.
+type Identity = (nix::libc::dev_t, nix::libc::ino_t);
+
 use ironrdp_core::impl_as_any;
 use ironrdp_pdu::PduResult;
 use ironrdp_rdpdr::pdu::RdpdrPdu;
@@ -71,7 +75,7 @@ struct Folder {
     paths: HashMap<u32, String>,
     /// Handles that marked their file for deletion, with the file's identity
     /// then, so a file made in its place since isn't the one removed.
-    marked: HashMap<u32, (u64, u64)>,
+    marked: HashMap<u32, Identity>,
 }
 
 impl_as_any!(Folder);
@@ -221,13 +225,13 @@ impl Folder {
         fstatat(parent.as_fd(), name, AtFlags::AT_SYMLINK_NOFOLLOW).ok()
     }
 
-    fn identity(&self, path: &str) -> Option<(u64, u64)> {
+    fn identity(&self, path: &str) -> Option<Identity> {
         self.stat(path).map(|s| (s.st_dev, s.st_ino))
     }
 
     /// Remove the entry at `path` if it is still the one marked. One the
     /// backend removed already is gone, and that is fine.
-    fn remove(&self, path: &str, identity: (u64, u64)) {
+    fn remove(&self, path: &str, identity: Identity) {
         let (Some((parent, name)), Some(stat)) = (self.parent(path), self.stat(path)) else {
             return;
         };

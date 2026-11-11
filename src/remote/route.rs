@@ -123,11 +123,14 @@ async fn tcp(host: &str, port: u16, patience: Duration) -> Result<TcpStream, Unr
         .with_time(Duration::from_secs(10))
         .with_interval(Duration::from_secs(5))
         .with_retries(3);
-    if let Err(e) = socket
-        .set_tcp_keepalive(&keepalive)
-        .and_then(|()| socket.set_tcp_user_timeout(Some(Duration::from_secs(20))))
-    {
-        tracing::debug!("setting the connection's timeouts: {e}");
+    if let Err(e) = socket.set_tcp_keepalive(&keepalive) {
+        tracing::debug!("setting the connection's keepalive: {e}");
+    }
+    // Only Linux bounds how long sent data may go unacknowledged; elsewhere
+    // the keepalive alone notices a silent network.
+    #[cfg(target_os = "linux")]
+    if let Err(e) = socket.set_tcp_user_timeout(Some(Duration::from_secs(20))) {
+        tracing::debug!("setting the connection's timeout: {e}");
     }
     Ok(stream)
 }
