@@ -1,10 +1,43 @@
 //! Keys go to the server as PC scancodes, so the server's own keyboard
 //! layout decides what they type. GTK reports the hardware keycode, which
-//! on Linux is the evdev code plus 8; this maps evdev codes to scancodes.
+//! on Linux is the evdev code plus 8 and on macOS is Apple's virtual key
+//! code; this maps either to scancodes.
+
+#[cfg(target_os = "macos")]
+mod mac;
+
+/// The scancode for a key code from GTK, with `0xE0` in the high byte for
+/// the extended keys.
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn from_gtk(keycode: u32) -> Option<u16> {
+    scancode(keycode.checked_sub(8)?)
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) use mac::from_gtk;
+
+/// GTK's key code for Right Ctrl, the key that lets go of the keyboard.
+#[cfg(not(target_os = "macos"))]
+pub(crate) const RIGHT_CTRL: u32 = 97 + 8;
+#[cfg(target_os = "macos")]
+pub(crate) const RIGHT_CTRL: u32 = 0x3E;
+
+/// Whether the key toggles a lock that macOS reports as pressed when it
+/// turns on and released when it turns off: each of those is a whole tap.
+#[cfg(target_os = "macos")]
+pub(crate) fn taps_on_change(keycode: u32) -> bool {
+    keycode == mac::CAPS_LOCK
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn taps_on_change(_keycode: u32) -> bool {
+    false
+}
 
 /// The scancode for an evdev key code, with `0xE0` in the high byte for the
 /// extended keys.
-pub(crate) fn scancode(evdev: u32) -> Option<u16> {
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+fn scancode(evdev: u32) -> Option<u16> {
     let code = match evdev {
         // Escape to keypad period: evdev numbered these after the scancodes.
         1..=83 => evdev as u16,

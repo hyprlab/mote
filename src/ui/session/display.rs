@@ -20,8 +20,7 @@ type InputSink = Rc<dyn Fn(Vec<Input>)>;
 type SizeSink = Rc<dyn Fn()>;
 type GrabSink = Rc<dyn Fn()>;
 
-/// GTK's keycode for Right Ctrl: evdev's 97, plus 8.
-const RIGHT_CTRL: u32 = 97 + 8;
+use keymap::RIGHT_CTRL;
 const RIGHT_CTRL_KEY: Key = Key {
     scancode: 0xE01D,
     keysym: 0xFFE4,
@@ -549,6 +548,12 @@ impl Display {
         self.send(input);
     }
 
+    /// Press and let go of the key at once.
+    fn tap(&self, key: Key) {
+        self.apply(Input::Key { key, down: true });
+        self.apply(Input::Key { key, down: false });
+    }
+
     /// The desktop position under a point of the widget.
     fn remote_point(&self, x: f64, y: f64) -> Option<Input> {
         let texture = self.imp().texture.borrow().clone()?;
@@ -645,14 +650,14 @@ fn connect_input(display: &Display) {
                 // Kept from this computer's shortcuts all the same.
                 return glib::Propagation::Stop;
             }
-            if let Some(scancode) = scancode(keycode) {
-                // The server repeats a held key itself.
-                if !display.imp().state.borrow().is_key_down(scancode) {
-                    let keysym = glib::translate::IntoGlib::into_glib(keyval);
-                    display.apply(Input::Key {
-                        key: Key { scancode, keysym },
-                        down: true,
-                    });
+            if let Some(scancode) = keymap::from_gtk(keycode) {
+                let keysym = glib::translate::IntoGlib::into_glib(keyval);
+                let key = Key { scancode, keysym };
+                if keymap::taps_on_change(keycode) {
+                    display.tap(key);
+                } else if !display.imp().state.borrow().is_key_down(scancode) {
+                    // The server repeats a held key itself.
+                    display.apply(Input::Key { key, down: true });
                 }
             }
             // Every key is the session's, shortcuts included.
@@ -662,7 +667,7 @@ fn connect_input(display: &Display) {
     keys.connect_key_released(glib::clone!(
         #[weak]
         display,
-        move |_, _, keycode, _| {
+        move |_, keyval, keycode, _| {
             if keycode == RIGHT_CTRL && display.imp().host_key.replace(false) {
                 display.imp().let_go.set(true);
                 let sink = display.imp().on_let_go.borrow().clone();
@@ -671,7 +676,11 @@ fn connect_input(display: &Display) {
                 }
                 return;
             }
-            if let Some(scancode) = scancode(keycode).filter(|_| !display.imp().view_only.get()) {
+            let scancode = keymap::from_gtk(keycode).filter(|_| !display.imp().view_only.get());
+            if let Some(scancode) = scancode.filter(|_| keymap::taps_on_change(keycode)) {
+                let keysym = glib::translate::IntoGlib::into_glib(keyval);
+                display.tap(Key { scancode, keysym });
+            } else if let Some(scancode) = scancode {
                 // Let go of with the keysym it was pressed with.
                 display.apply(Input::Key {
                     key: Key {
@@ -884,11 +893,6 @@ fn holds_button(event: &gdk::Event) -> bool {
         }
     }
     event.modifier_state().intersects(buttons)
-}
-
-/// GTK's hardware keycode is the evdev code plus 8.
-fn scancode(keycode: u32) -> Option<u16> {
-    keymap::scancode(keycode.checked_sub(8)?)
 }
 
 fn mouse_button(button: u32) -> Option<Button> {
