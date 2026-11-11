@@ -258,6 +258,7 @@ impl Display {
         self.imp().on_grabbed.replace(Some(Rc::new(sink)));
     }
 
+    #[cfg(not(target_os = "macos"))]
     fn hold_shortcuts(&self, hold: bool) {
         let Some(toplevel) = self
             .native()
@@ -271,6 +272,59 @@ impl Display {
         } else {
             toplevel.restore_system_shortcuts();
         }
+    }
+
+    /// On macOS an event tap holds the system's shortcuts back
+    /// (`crate::macos::shortcuts`), and hands their keys here.
+    #[cfg(target_os = "macos")]
+    fn hold_shortcuts(&self, hold: bool) {
+        if !hold {
+            crate::macos::shortcuts::release();
+            return;
+        }
+        let display = self.downgrade();
+        let held = crate::macos::shortcuts::hold(move |keycode, down| {
+            display
+                .upgrade()
+                .is_some_and(|display| display.shortcut_key(keycode, down))
+        });
+        if held {
+            let sink = self.imp().on_grabbed.borrow().clone();
+            if let Some(sink) = sink {
+                sink();
+            }
+        }
+    }
+
+    /// A key the event tap took from macOS, as the key controller would
+    /// have sent it.
+    #[cfg(target_os = "macos")]
+    fn shortcut_key(&self, keycode: u32, down: bool) -> bool {
+        if down {
+            self.send_host_key();
+        }
+        if self.imp().view_only.get() {
+            return true;
+        }
+        let Some(scancode) = keymap::from_gtk(keycode) else {
+            return false;
+        };
+        // The key's own symbol, without Shift, for VNC, which sends those.
+        let keysym = self
+            .display()
+            .map_keycode(keycode)
+            .and_then(|keys| {
+                keys.into_iter()
+                    .find(|(at, _)| at.level() == 0 && at.group() == 0)
+            })
+            .map_or(0, |(_, key)| glib::translate::IntoGlib::into_glib(key));
+        let key = Key { scancode, keysym };
+        if !down {
+            self.apply(Input::Key { key, down: false });
+        } else if !self.imp().state.borrow().is_key_down(scancode) {
+            self.apply(Input::Key { key, down: true });
+        }
+        true
     }
 
     pub(crate) fn view_only(&self) -> bool {
