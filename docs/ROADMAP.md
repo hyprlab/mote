@@ -948,12 +948,17 @@ own modules ([CONTRIBUTING.md](CONTRIBUTING.md#two-platforms)).
   as a MacBook has no Right Ctrl.
 - The menu bar's app menu for About, Settings and Quit, Command for
   shortcuts, and text at the size GNOME uses.
-- An app bundle, with the name and icon macOS shows.
-- Still to come: a bundle that carries its own GTK and libadwaita, signed
-  with a Developer ID and notarized, on a disk image; built and published by
-  the release workflow beside the Linux packages; sound through CoreAudio;
-  H.264 through VideoToolbox; the macOS shortcuts a session should keep
-  (Command-Tab), which takes the Accessibility permission.
+- An app bundle, with the name and icon macOS shows, that carries its own
+  GTK and libadwaita and the data they read, and speaks the language macOS
+  is set to.
+- Signed with Mote's own certificate, so the Keychain and macOS's
+  permissions carry over from one version to the next, and updated through
+  Sparkle from the appcast on mote.hyprlab.co.
+- A disk image, built, signed and run from the disk image without Homebrew
+  by the release workflow, beside the Linux packages.
+- Still to come: sound through CoreAudio; H.264 through VideoToolbox; the
+  macOS shortcuts a session should keep (Command-Tab), which takes the
+  Accessibility permission.
 
 Built: against xrdp from a MacBook on macOS 27, both through the engine's
 own test and in the app, and against GNOME Remote Login on Fedora.

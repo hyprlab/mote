@@ -96,23 +96,54 @@ sed "s|^Exec=mote$|Exec=$PWD/target/debug/mote|" data/co.hyprlab.Mote.desktop \
 
 ## macOS
 
-On a Mac, with [Homebrew](https://brew.sh):
+On a Mac with Apple silicon and [Homebrew](https://brew.sh):
 
 ```sh
-brew install gtk4 libadwaita pkgconf adwaita-icon-theme rustup
+brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg gettext pkgconf rustup
 rustup default stable
 tools/build-macos-app.sh
 open target/debug/Mote.app
 ```
 
-`tools/build-macos-app.sh` builds the app and wraps it in `Mote.app`, which
-gives it its name in the menu bar and the Dock, and its icon;
-`tools/build-macos-app.sh release` does the same with a release build. The
-bundle still loads GTK and libadwaita from Homebrew, and it is signed ad hoc,
-so the Keychain asks again before each new build reads a saved password.
+`tools/build-macos-app.sh` builds the app and makes `Mote.app`, which carries
+everything it runs on, so it runs on a Mac without Homebrew:
 
-The Keychain is locked to an SSH login. Over SSH, `open` starts the app in
-the session of whoever is logged in at the Mac, where it is unlocked, and
+- `tools/macos-bundle.py` copies in every library the binary loads from
+  Homebrew, and the libraries those load, and points them at each other; the
+  build fails if anything still points into Homebrew. GTK's GSettings
+  schemas, the Adwaita icons, the SVG loader, the translations and a
+  fontconfig setup come along, and the app points GTK at them when it starts
+  (`src/macos/bundle.rs`).
+- [Sparkle](https://sparkle-project.org), downloaded from its release and
+  checked against its SHA-256, updates the app from the appcast on
+  mote.hyprlab.co, which Flatout writes and signs.
+- The app runs on the macOS the libraries were built for, and later:
+  Homebrew builds for the macOS it runs on, so the release is built on the
+  oldest macOS it supports.
+
+`tools/build-macos-app.sh release` does the same with a release build, and
+`tools/build-macos-app.sh release dmg` adds the disk image,
+`target/release/Mote-<version>.dmg`. A beta version builds the beta app,
+`Mote Beta.app`, which checks the beta appcast.
+
+The app is signed with Mote's own certificate, not through Apple. macOS knows
+an app by its signature, so with the same certificate on every build the
+Keychain keeps giving a new version the passwords the last one saved, the
+microphone and local network stay allowed, and Sparkle accepts the update. To
+sign with it, set the Mac up once with the certificate's `.p12` file and its
+password:
+
+```sh
+MOTE_SIGN_P12_PASSWORD=... tools/macos-signing.sh mote-signing.p12
+```
+
+This puts it in a keychain of its own, which unlocks over SSH, and the build
+uses it from then on. Without it, the build is signed ad hoc: it runs on the
+Mac it was built on, but the Keychain asks again before each new build reads a
+saved password.
+
+The login keychain is locked to an SSH login. Over SSH, `open` starts the app
+in the session of whoever is logged in at the Mac, where it is unlocked, and
 `open --env NAME=value` passes it the environment, such as `MOTE_SHOWCASE`
 (see [Pictures of the interface](#pictures-of-the-interface)).
 

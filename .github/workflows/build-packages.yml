@@ -3,7 +3,7 @@ run-name: Packages ${{ inputs.ref || github.ref_name }}
 
 # Every package Mote ships, for x86_64 and ARM64, each built natively: x86_64
 # on GitHub's usual runners, ARM64 on its arm64 ones (free for public
-# repositories). Emulating ARM64 through qemu takes hours; this takes
+# repositories), and the macOS app on its Apple silicon ones. Emulating ARM64 through qemu takes hours; this takes
 # minutes. The same scripts build x86_64 on the maintainer's machine
 # (docs/BUILDING.md); here both architectures come from one place.
 #
@@ -255,11 +255,81 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  macos:
+    name: macOS app
+    # macOS 15: Homebrew builds for the macOS it runs on, and the app runs on
+    # that and later, so the oldest runner sets the oldest Mac it runs on.
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Install the build dependencies
+        run: brew install gtk4 libadwaita adwaita-icon-theme hicolor-icon-theme librsvg gettext pkgconf
+
+      - name: Set up the signing certificate
+        # Mote's own certificate (tools/macos-signing.sh), from the
+        # repository's secrets. A tag is never released signed ad hoc.
+        env:
+          CERTIFICATE: ${{ secrets.MOTE_MACOS_CERTIFICATE }}
+          MOTE_SIGN_P12_PASSWORD: ${{ secrets.MOTE_MACOS_CERTIFICATE_PASSWORD }}
+          MOTE_SIGN_KEYCHAIN: ${{ runner.temp }}/mote-signing.keychain-db
+          MOTE_SIGNING_ENV: ${{ runner.temp }}/mote-signing.env
+        run: |
+          if [ -z "$CERTIFICATE" ]; then
+            case "${{ github.ref }}" in
+              refs/tags/v*) echo "no signing certificate in the secrets" >&2; exit 1 ;;
+            esac
+            echo "no signing certificate: signing ad hoc"
+            exit 0
+          fi
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/mote-signing.p12"
+          tools/macos-signing.sh "$RUNNER_TEMP/mote-signing.p12"
+          rm "$RUNNER_TEMP/mote-signing.p12"
+
+      - name: Build the app and the disk image
+        env:
+          MOTE_SIGNING_ENV: ${{ runner.temp }}/mote-signing.env
+        run: tools/build-macos-app.sh release dmg
+
+      - name: Check the version, the signature and the libraries
+        run: |
+          want="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          app=$(ls -d target/release/*.app)
+          test "$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")" = "$want" \
+            || { echo "built app is not $want" >&2; exit 1; }
+          plutil -extract LSMinimumSystemVersion raw "$app/Contents/Info.plist"
+          codesign --verify --deep --strict "$app"
+          codesign -dvv "$app" 2>&1 | grep -E '^(Authority|Identifier)='
+          ls -l target/release/*.dmg
+
+      - name: Run it from the disk image, without Homebrew
+        timeout-minutes: 5
+        # Homebrew is moved out of the way, so a library or file the bundle
+        # still takes from it fails here rather than on someone's Mac.
+        run: |
+          hdiutil attach -nobrowse -mountpoint /tmp/mote-dmg target/release/*.dmg
+          sudo mv /opt/homebrew /opt/homebrew.off
+          trap 'sudo mv /opt/homebrew.off /opt/homebrew' EXIT
+          mkdir -p "$RUNNER_TEMP/config"
+          open -n -W --env MOTE_SHOWCASE="$RUNNER_TEMP/first.png" --env MOTE_SHOWCASE_OPEN=about \
+            --env XDG_CONFIG_HOME="$RUNNER_TEMP/config" /tmp/mote-dmg/*.app
+          test -s "$RUNNER_TEMP/first.png"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mote-macos
+          path: target/release/*.dmg
+          retention-days: 30
+          if-no-files-found: error
+
   release:
     name: Draft the release
     # Only for a tag, and only once every package built and installed.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [appimage, deb-check, rpm-check, flatpak]
+    needs: [appimage, deb-check, rpm-check, flatpak, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write

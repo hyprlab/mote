@@ -1,9 +1,10 @@
 # Installing
 
 The short version is in the [README](../README.md#installing); this page has
-the rest. Every format runs on **x86_64 and aarch64 (ARM64)**, and they all
-keep connections, settings and passwords in the same place, so moving from one
-to another loses nothing.
+the rest. Every Linux format runs on **x86_64 and aarch64 (ARM64)**, and they
+all keep connections, settings and passwords in the same place, so moving from
+one to another loses nothing. The [macOS app](#macos) is for Macs with Apple
+silicon.
 
 ## Flatpak (recommended)
 
@@ -95,6 +96,26 @@ Each AppImage knows where its updates come from: add it to
 AppImageLauncher, or run `appimageupdatetool` on it, and it fetches only the
 parts that changed.
 
+## macOS
+
+Mote for macOS runs on Macs with Apple silicon, on macOS 15 or later. Download
+[Mote.dmg](https://mote.hyprlab.co/download/Mote.dmg), which each release
+carries too, open it and drag Mote to Applications.
+
+Mote is signed with its own certificate rather than through Apple, so the
+first time it opens, macOS says Apple could not verify that it is free of
+malware, and offers only to move it to the Trash. To open it anyway, once:
+
+1. Open Mote from Applications, and choose Done.
+2. Open System Settings > Privacy & Security, and under Security choose Open
+   Anyway beside the line about Mote.
+3. Confirm with your password or Touch ID, then choose Open.
+
+From then on it opens like any other app, and updates itself: at its second
+launch it asks whether to check for updates on its own, and Mote > Check for
+Updates checks at once. An update installs without macOS asking again.
+Passwords are kept in the Keychain.
+
 ## Beta channel
 
 Betas come in every format the stable release does. The site's
@@ -174,9 +195,17 @@ chmod +x Mote-Beta-x86_64.AppImage
 On ARM, the file is `Mote-Beta-aarch64.AppImage`. To leave the betas, delete it
 and use the stable AppImage.
 
+### macOS beta
+
+The beta is its own app, "Mote (beta)", which installs beside Mote and
+updates from the beta channel, moving on to each stable release as well.
+Download [Mote-Beta.dmg](https://mote.hyprlab.co/download/beta/Mote-Beta.dmg)
+and open it once as above. To leave the betas, move it to the Trash.
+
 ## Runtime requirements
 
-A Secret Service provider, such as gnome-keyring, which GNOME installs, stores
-passwords. The Flatpak carries everything else. Outside it, Mote loads
+On Linux, a Secret Service provider, such as gnome-keyring, which GNOME
+installs, stores passwords. The Flatpak carries everything else. Outside it, Mote loads
 [H.264 decoders](BUILDING.md#h264) and [sound libraries](BUILDING.md#sound) when
-it runs, and the packages recommend them.
+it runs, and the packages recommend them. The macOS app carries everything it
+needs.

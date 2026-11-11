@@ -50,8 +50,8 @@ What each release brought is in
 flatpak install --user --from https://mote.hyprlab.co/flatpak/co.hyprlab.Mote.flatpakref
 ```
 
-Fedora and Debian packages, AppImages and the beta channel are in
-[docs/INSTALLING.md](docs/INSTALLING.md).
+Fedora and Debian packages, AppImages, the macOS app and the beta channel are
+in [docs/INSTALLING.md](docs/INSTALLING.md).
 
 ## Building
 
