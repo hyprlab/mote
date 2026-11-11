@@ -201,7 +201,8 @@ and use the stable AppImage.
 ### macOS beta
 
 The beta is its own app, "Mote (beta)", which installs beside Mote and
-updates from the beta channel, moving on to each stable release as well.
+updates to each new beta. A stable release is the other app, so the beta
+doesn't move on to it; install Mote itself for that.
 Download [Mote-Beta-arm64.dmg](https://mote.hyprlab.co/download/beta/Mote-Beta-arm64.dmg)
 and open it once as above. To leave the betas, move it to the Trash.
 
