@@ -99,7 +99,7 @@ parts that changed.
 ## macOS
 
 Mote for macOS runs on Macs with Apple silicon, on macOS 15 or later. Download
-[Mote.dmg](https://mote.hyprlab.co/download/Mote.dmg), which each release
+[Mote-arm64.dmg](https://mote.hyprlab.co/download/Mote-arm64.dmg), which each release
 carries too, open it and drag Mote to Applications.
 
 Mote is signed with its own certificate rather than through Apple, so the
@@ -202,7 +202,7 @@ and use the stable AppImage.
 
 The beta is its own app, "Mote (beta)", which installs beside Mote and
 updates from the beta channel, moving on to each stable release as well.
-Download [Mote-Beta.dmg](https://mote.hyprlab.co/download/beta/Mote-Beta.dmg)
+Download [Mote-Beta-arm64.dmg](https://mote.hyprlab.co/download/beta/Mote-Beta-arm64.dmg)
 and open it once as above. To leave the betas, move it to the Trash.
 
 ## Runtime requirements
