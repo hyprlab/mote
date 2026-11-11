@@ -36,6 +36,23 @@ security import "$P12" -k "$KEYCHAIN" -P "$MOTE_SIGN_P12_PASSWORD" -T /usr/bin/c
 security set-key-partition-list -S apple-tool:,apple: -s -k "$PASSWORD" "$KEYCHAIN" >/dev/null
 IDENTITY="$(security find-identity -p codesigning "$KEYCHAIN" | awk '/\)/ { print $2; exit }')"
 [ -n "$IDENTITY" ] || { echo "no signing identity in $P12" >&2; exit 1; }
+# codesign on some macOS versions (GitHub's macOS 15 runners) finds the key
+# only in a keychain on the search list, --keychain or not.
+SEARCH=()
+while IFS= read -r line; do
+  line="${line#"${line%%[![:space:]]*}"}"
+  line="${line#\"}"
+  line="${line%\"}"
+  [ "$line" = "$KEYCHAIN" ] || SEARCH+=("$line")
+done < <(security list-keychains -d user)
+security list-keychains -d user -s "$KEYCHAIN" ${SEARCH[@]+"${SEARCH[@]}"}
+# Sign something now, so a key codesign can't use fails here and not after
+# the build.
+PROBE="$(mktemp -d)"
+cp /usr/bin/true "$PROBE/probe"
+codesign --force --timestamp=none --sign "$IDENTITY" --keychain "$KEYCHAIN" "$PROBE/probe" 2>/dev/null ||
+  { codesign --force --timestamp=none --sign "$IDENTITY" --keychain "$KEYCHAIN" "$PROBE/probe"; exit 1; }
+rm -rf "$PROBE"
 
 mkdir -p "$(dirname "$ENV_FILE")"
 umask 077
