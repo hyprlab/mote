@@ -12,6 +12,10 @@ const VERSION: &str = "2.6.0";
 
 /// Cisco's builds, by machine, with their SHA-256 once unpacked.
 fn build() -> Option<(&'static str, &'static str)> {
+    // Cisco's builds here are Linux's; the macOS app has VideoToolbox.
+    if cfg!(target_os = "macos") {
+        return None;
+    }
     match std::env::consts::ARCH {
         "x86_64" => Some((
             "linux64",

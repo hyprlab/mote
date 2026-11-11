@@ -2588,6 +2588,7 @@ version = "1.4.0"
 dependencies = [
  "aes 0.8.4",
  "bzip2",
+ "core-foundation",
  "des",
  "eax",
  "flate2",

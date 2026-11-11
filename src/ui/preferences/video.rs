@@ -64,6 +64,9 @@ fn label(source: Source) -> String {
         Source::Ffmpeg => i18n("FFmpeg"),
         Source::SystemOpenH264 => i18n("System OpenH264"),
         Source::CiscoOpenH264 => i18n("Cisco’s OpenH264"),
+        // A name, so never translated.
+        #[cfg(target_os = "macos")]
+        Source::VideoToolbox => "VideoToolbox".to_owned(),
     }
 }
 

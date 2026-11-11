@@ -111,6 +111,8 @@ security-framework = "3"
 # which updates the app.
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSBundle", "NSEnumerator", "NSLocale", "NSString"] }
+# CoreFoundation's types, for the attributes VideoToolbox decodes H.264 to.
+core-foundation = "0.10"
 
 [build-dependencies]
 glib-build-tools = "0.22"

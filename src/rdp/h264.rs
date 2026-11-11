@@ -2,11 +2,13 @@
 //! loaded when a session starts: FFmpeg's (the Flatpak's GNOME runtime has
 //! it), the system's OpenH264 (Fedora's), or Cisco's OpenH264 downloaded on
 //! request. Without one, servers send RemoteFX instead, or, like KRdp,
-//! refuse the session.
+//! refuse the session. On macOS, VideoToolbox, which every Mac has.
 
 pub(crate) mod cisco;
 mod ffmpeg;
 mod openh264;
+#[cfg(target_os = "macos")]
+mod videotoolbox;
 
 use std::sync::Mutex;
 
@@ -21,17 +23,26 @@ pub(crate) enum Source {
     SystemOpenH264,
     #[serde(rename = "cisco-openh264")]
     CiscoOpenH264,
+    #[cfg(target_os = "macos")]
+    #[serde(rename = "videotoolbox")]
+    VideoToolbox,
 }
 
 impl Source {
     /// The order sources are tried in when none is chosen.
+    #[cfg(not(target_os = "macos"))]
     pub(crate) const ALL: [Self; 3] = [Self::Ffmpeg, Self::SystemOpenH264, Self::CiscoOpenH264];
+    /// On macOS, VideoToolbox alone.
+    #[cfg(target_os = "macos")]
+    pub(crate) const ALL: [Self; 1] = [Self::VideoToolbox];
 
     fn name(self) -> &'static str {
         match self {
             Self::Ffmpeg => "ffmpeg",
             Self::SystemOpenH264 => "openh264",
             Self::CiscoOpenH264 => "cisco",
+            #[cfg(target_os = "macos")]
+            Self::VideoToolbox => "videotoolbox",
         }
     }
 
@@ -49,6 +60,8 @@ impl Source {
                 .then(|| openh264::OpenH264::checked(&cisco::path()))
                 .flatten()
                 .map(|d| Box::new(d) as _),
+            #[cfg(target_os = "macos")]
+            Self::VideoToolbox => Some(Box::new(videotoolbox::VideoToolbox::new())),
         }
     }
 }
