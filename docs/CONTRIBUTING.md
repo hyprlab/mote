@@ -27,6 +27,26 @@ wrong, awkward or missing is worth as much as a patch.
   under the [AGPL-3.0-or-later](../LICENSE), and that it may be adapted before
   it lands, with the change explained on the pull request.
 
+## Two platforms
+
+Mote is a GNOME app first, and every release also ships for macOS from the
+same code. A change for one platform must leave the other exactly as it was:
+
+- What only one platform does lives in a module of its own, compiled for
+  that platform alone with `#[cfg(target_os = "macos")]` or
+  `#[cfg(not(target_os = "macos"))]`, such as `src/secrets/keychain.rs`
+  beside `src/secrets/secret_service.rs`, or `src/rdp/keymap/mac.rs`.
+- Shared code asks about the platform only at small seams: a `cfg!` choosing
+  between two strings, or a helper in `src/platform.rs`, such as the one that
+  makes `<Control>` shortcuts Command on macOS.
+- A platform's dependencies go under
+  `[target.'cfg(...)'.dependencies]` in `Cargo.toml`.
+- A user-facing string that differs gets its own msgid on each platform,
+  rather than one string with the platform's word filled in.
+- Every push is built, linted and tested on both by
+  `.github/workflows/check.yml`; [BUILDING.md](BUILDING.md#macos) has the
+  macOS build.
+
 ## Commits
 
 Subjects follow [Conventional Commits](https://www.conventionalcommits.org):

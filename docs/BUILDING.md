@@ -94,6 +94,28 @@ sed "s|^Exec=mote$|Exec=$PWD/target/debug/mote|" data/co.hyprlab.Mote.desktop \
   > ~/.local/share/applications/co.hyprlab.Mote.desktop
 ```
 
+## macOS
+
+On a Mac, with [Homebrew](https://brew.sh):
+
+```sh
+brew install gtk4 libadwaita pkgconf adwaita-icon-theme rustup
+rustup default stable
+tools/build-macos-app.sh
+open target/debug/Mote.app
+```
+
+`tools/build-macos-app.sh` builds the app and wraps it in `Mote.app`, which
+gives it its name in the menu bar and the Dock, and its icon;
+`tools/build-macos-app.sh release` does the same with a release build. The
+bundle still loads GTK and libadwaita from Homebrew, and it is signed ad hoc,
+so the Keychain asks again before each new build reads a saved password.
+
+The Keychain is locked to an SSH login. Over SSH, `open` starts the app in
+the session of whoever is logged in at the Mac, where it is unlocked, and
+`open --env NAME=value` passes it the environment, such as `MOTE_SHOWCASE`
+(see [Pictures of the interface](#pictures-of-the-interface)).
+
 ## Translations
 
 `tools/update-pot.sh` regenerates `po/mote.pot` after strings change, with

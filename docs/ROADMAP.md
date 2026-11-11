@@ -118,6 +118,7 @@ headless GNOME Remote Desktop signed in over it with
 | 16 | VNC clipboard | Done |
 | 17 | VNC connections | Done |
 | 18 | macOS Screen Sharing | In progress |
+| 19 | macOS app | In progress |
 
 ### 1. Foundation
 
@@ -934,6 +935,28 @@ from which the session stepped down to Diffie-Hellman alone where Allow
 Unencrypted was on, and stopped with that advice where it was off. Not
 yet tried: an older Mac itself, the clipboard both ways, and a key
 changed during a session.
+
+### 19. macOS app
+
+Mote for macOS, from the same code, released with every GNOME version. The
+GNOME app stays exactly as it is: what macOS does differently lives in its
+own modules ([CONTRIBUTING.md](CONTRIBUTING.md#two-platforms)).
+
+- Passwords in the Keychain.
+- Keys sent by their place on the keyboard from Apple's key codes, Command
+  as Super and Option as Alt; Right Command, alone, lets go of the keyboard,
+  as a MacBook has no Right Ctrl.
+- The menu bar's app menu for About, Settings and Quit, Command for
+  shortcuts, and text at the size GNOME uses.
+- An app bundle, with the name and icon macOS shows.
+- Still to come: a bundle that carries its own GTK and libadwaita, signed
+  with a Developer ID and notarized, on a disk image; built and published by
+  the release workflow beside the Linux packages; sound through CoreAudio;
+  H.264 through VideoToolbox; the macOS shortcuts a session should keep
+  (Command-Tab), which takes the Accessibility permission.
+
+Built: against xrdp from a MacBook on macOS 27, both through the engine's
+own test and in the app, and against GNOME Remote Login on Fedora.
 
 ## Remmina parity
 
