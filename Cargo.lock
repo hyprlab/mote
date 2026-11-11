@@ -2584,7 +2584,7 @@ dependencies = [
 
 [[package]]
 name = "mote"
-version = "1.5.0-beta.1"
+version = "1.5.0"
 dependencies = [
  "aes 0.8.4",
  "bzip2",

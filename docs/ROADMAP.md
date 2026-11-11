@@ -118,7 +118,7 @@ headless GNOME Remote Desktop signed in over it with
 | 16 | VNC clipboard | Done |
 | 17 | VNC connections | Done |
 | 18 | macOS Screen Sharing | In progress |
-| 19 | macOS app | In progress |
+| 19 | macOS app | Done |
 
 ### 1. Foundation
 
@@ -966,6 +966,7 @@ Built: against xrdp from a MacBook on macOS 27, both through the engine's
 own test and in the app, and against GNOME Remote Login on Fedora; sound and
 H.264 through VideoToolbox (AVC420, 30 frames a second at about 3 ms each)
 against xrdp; an update through Sparkle, from one signed build to the next.
+Shipped in 1.5.0-beta.1 and tried from its download by the maintainer.
 
 ## Remmina parity
 

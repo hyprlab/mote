@@ -64,7 +64,7 @@
   </supports>
 
   <releases>
-    <release version="1.5.0-beta.1" date="2026-11-11" type="development">
+    <release version="1.5.0" date="2026-11-11" type="stable">
       <description>
         <p>Mote has a macOS app, which updates itself. The app has a new icon. The French translation is up to date.</p>
       </description>
