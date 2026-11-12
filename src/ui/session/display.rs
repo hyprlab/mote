@@ -41,6 +41,10 @@ mod imp {
         pub(super) keeps_size: Cell<bool>,
         /// The server's pointer, kept to draw it again at a new scale.
         pub(super) pointer: RefCell<Option<Arc<Pointer>>>,
+        /// That pointer drawn sharp, set over GTK's while the pointer is
+        /// here.
+        #[cfg(target_os = "macos")]
+        pub(super) sharp: RefCell<Option<crate::macos::cursor::Cursor>>,
         /// The surface whose scale is followed, and the handler doing it.
         pub(super) watched: RefCell<Option<(gdk::Surface, glib::SignalHandlerId)>>,
         /// What is held down on the server's side, so a key or button
@@ -527,6 +531,8 @@ impl Display {
     }
 
     pub(crate) fn set_remote_cursor(&self, cursor: remote::Cursor) {
+        #[cfg(target_os = "macos")]
+        self.imp().sharp.replace(None);
         let cursor = match cursor {
             remote::Cursor::Default => {
                 self.imp().pointer.replace(None);
@@ -561,28 +567,51 @@ impl Display {
             .borrow()
             .as_ref()
             .map_or(1.0 / device_scale(self), |t| Placement::new(self, t).scale);
-        let texture = gdk::MemoryTexture::new(
-            w,
-            h,
-            gdk::MemoryFormat::R8g8b8a8,
-            &glib::Bytes::from(&pointer.rgba),
-            w as usize * 4,
-        );
         let logical = |pixels: u16| ((f64::from(pixels) * scale).round() as i32).max(1);
         let size = (logical(pointer.width), logical(pointer.height));
         let hotspot = (
             (f64::from(pointer.hotspot_x) * scale).round() as i32,
             (f64::from(pointer.hotspot_y) * scale).round() as i32,
         );
+        // GTK on macOS shows the image's pixels as points, whatever size the
+        // cursor asks for, so it gets one that size in pixels.
+        #[cfg(target_os = "macos")]
+        let texture = crate::macos::cursor::shrunk(&pointer, size);
+        #[cfg(not(target_os = "macos"))]
+        let texture: gdk::Texture = gdk::MemoryTexture::new(
+            w,
+            h,
+            gdk::MemoryFormat::R8g8b8a8,
+            &glib::Bytes::from(&pointer.rgba),
+            w as usize * 4,
+        )
+        .upcast();
+        #[cfg(target_os = "macos")]
+        self.imp().sharp.replace(crate::macos::cursor::Cursor::new(
+            &pointer.rgba,
+            w as usize,
+            h as usize,
+            (f64::from(size.0), f64::from(size.1)),
+            (f64::from(hotspot.0), f64::from(hotspot.1)),
+        ));
         let cursor = gdk::Cursor::from_callback(
             move |_, _, _, width, height, hotspot_x, hotspot_y| {
                 (*width, *height) = size;
                 (*hotspot_x, *hotspot_y) = hotspot;
-                texture.clone().upcast()
+                texture.clone()
             },
             None,
         );
         self.set_cursor(cursor.as_ref());
+    }
+
+    /// On macOS, the server's pointer drawn sharp, over the one GTK set,
+    /// as the pointer moves here.
+    fn set_sharp_cursor(&self) {
+        #[cfg(target_os = "macos")]
+        if let Some(cursor) = self.imp().sharp.borrow().as_ref() {
+            cursor.set();
+        }
     }
 
     fn send(&self, events: impl IntoIterator<Item = Input>) {
@@ -772,6 +801,7 @@ fn connect_input(display: &Display) {
         #[weak]
         display,
         move |_, _, _| {
+            display.set_sharp_cursor();
             let active = display
                 .root()
                 .and_downcast::<gtk::Window>()
@@ -801,6 +831,7 @@ fn connect_input(display: &Display) {
         #[weak]
         display,
         move |_, x, y| {
+            display.set_sharp_cursor();
             if display.imp().view_only.get() {
                 return;
             }

@@ -4,6 +4,8 @@
 //! through Sparkle, and windows that come up already drawn.
 
 mod bundle;
+pub(crate) mod cursor;
+pub(crate) mod fullscreen;
 mod language;
 pub(crate) mod shortcuts;
 pub(crate) mod updates;
