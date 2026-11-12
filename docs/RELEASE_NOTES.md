@@ -4,6 +4,14 @@ A remote desktop client for GNOME, for Linux machines that run GNOME Remote
 Desktop, xrdp, KRdp or a VNC server, and for Macs. Each section below is
 what a release brought; the detail is in the commit history.
 
+## What's new in 1.5.2
+
+### Fixes:
+
+- the session's pointer on macOS was twice its size
+- clicks on macOS landed beside the pointer's tip
+- fullscreen on macOS hid the sidebar
+
 ## What's new in 1.5.1
 
 ### Fixes:

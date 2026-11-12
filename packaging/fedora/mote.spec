@@ -4,7 +4,7 @@
 %global debug_package %{nil}
 
 Name:           mote
-Version:        1.5.1
+Version:        1.5.2
 Release:        1%{?dist}
 Summary:        Connect to Linux desktops over RDP and VNC
 License:        AGPL-3.0-or-later
@@ -73,6 +73,10 @@ done
 %{_datadir}/icons/hicolor/symbolic/apps/%{appid}-symbolic.svg
 
 %changelog
+* Thu Nov 12 2026 Hyprlab <hyprlab@proton.me> - 1.5.2-1
+- The session's pointer at its own size on macOS, clicking where its tip is
+- A fullscreen main window keeps its sidebar on macOS
+
 * Thu Nov 12 2026 Hyprlab <hyprlab@proton.me> - 1.5.1-1
 - macOS windows appear already drawn
 - About opens faster on macOS

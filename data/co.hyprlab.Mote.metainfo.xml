@@ -64,6 +64,11 @@
   </supports>
 
   <releases>
+    <release version="1.5.2" date="2026-11-12" type="stable">
+      <description>
+        <p>On macOS a session's pointer is its own size again, sharp, and clicks where its tip is. A main window made fullscreen keeps its sidebar.</p>
+      </description>
+    </release>
     <release version="1.5.1" date="2026-11-12" type="stable">
       <description>
         <p>On macOS a new window appears already drawn, rather than its shadow first, and About opens again at once.</p>
