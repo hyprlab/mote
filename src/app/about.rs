@@ -241,9 +241,28 @@ fn thanks(page: &gtk::Box) {
     page.append(&footer);
 }
 
+#[cfg(target_os = "macos")]
+thread_local! {
+    /// macOS keeps the About window once it has opened, with its page and
+    /// scroller: GTK takes about 130ms to draw a new window there, and one
+    /// shown again draws at once (see `macos::windows`). Nothing in it
+    /// changes while the app runs.
+    static KEPT: std::cell::RefCell<Option<(adw::Window, adw::NavigationView, gtk::Adjustment)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
 /// A scrollable About window: the app up top, then its links and thanks,
 /// with Release Notes sliding in over it.
 pub(super) fn present(parent: &adw::ApplicationWindow) {
+    #[cfg(target_os = "macos")]
+    if let Some((window, nav, adjustment)) = KEPT.with_borrow(Clone::clone) {
+        // As a new one opens: on its first page, at the top. Hidden, it
+        // changes without animating.
+        nav.pop_to_tag("main");
+        adjustment.set_value(adjustment.lower());
+        crate::platform::present(&window);
+        return;
+    }
     let title = crate::i18n::i18n_f("About {name}", &[("name", &APP_NAME)]);
     let window = adw::Window::builder()
         .transient_for(parent)
@@ -298,6 +317,12 @@ pub(super) fn present(parent: &adw::ApplicationWindow) {
     nav.add(&notes::page());
 
     window.set_content(Some(&nav));
+    #[cfg(target_os = "macos")]
+    {
+        window.set_hide_on_close(true);
+        let kept = (window.clone(), nav.clone(), scroller.vadjustment());
+        KEPT.with_borrow_mut(|k| *k = Some(kept));
+    }
     crate::platform::present(&window);
 
     // The showcase hook: MOTE_SHOWCASE_SCROLL runs the page down by that
