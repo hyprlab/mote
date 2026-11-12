@@ -225,7 +225,7 @@ impl Info {
             move || fill(&list, &mut rows.borrow_mut(), &facts.borrow().rows())
         };
         refresh();
-        self.window.present();
+        crate::platform::present(&self.window);
         if open {
             return;
         }

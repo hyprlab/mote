@@ -298,7 +298,7 @@ pub(super) fn present(parent: &adw::ApplicationWindow) {
     nav.add(&notes::page());
 
     window.set_content(Some(&nav));
-    window.present();
+    crate::platform::present(&window);
 
     // The showcase hook: MOTE_SHOWCASE_SCROLL runs the page down by that
     // fraction once it is laid out, so a capture can show its foot, and

@@ -148,7 +148,7 @@ impl Spread {
                     glib::Propagation::Proceed
                 });
                 window.fullscreen_on_monitor(monitor);
-                window.present();
+                crate::platform::present(&window);
                 (window, display)
             })
             .collect();

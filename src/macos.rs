@@ -1,12 +1,13 @@
 //! What the macOS app does around GTK that the GNOME app has no need of:
 //! finding the libraries and data Mote.app carries, the language macOS is
 //! set to, holding macOS's shortcuts back for a session, and updates
-//! through Sparkle.
+//! through Sparkle, and windows that come up already drawn.
 
 mod bundle;
 mod language;
 pub(crate) mod shortcuts;
 pub(crate) mod updates;
+pub(crate) mod windows;
 
 pub(crate) use bundle::rebind_toolkit_translations;
 

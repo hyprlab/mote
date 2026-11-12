@@ -18,7 +18,7 @@ impl AppModel {
     /// Open a session to the connection, or show the one already open.
     pub(super) fn connect(&mut self, id: &str, sender: &ComponentSender<Self>) {
         if let Some(window) = self.detached.get(id) {
-            window.present();
+            crate::platform::present(window);
             return;
         }
         if !self.sessions.contains_key(id) {
@@ -152,7 +152,7 @@ impl AppModel {
             gtk::glib::Propagation::Stop
         });
         session.emit(SessionInput::SetDetached(true));
-        window.present();
+        crate::platform::present(&window);
         self.detached.insert(id.to_owned(), window);
         if self.selected.as_deref() == Some(id) {
             self.select(Some(id.to_owned()));

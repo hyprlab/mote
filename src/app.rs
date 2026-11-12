@@ -804,7 +804,7 @@ impl AppModel {
                 .launch(self.settings.clone())
                 .forward(sender.input_sender(), AppMsg::Pref)
         });
-        prefs.widget().present();
+        crate::platform::present(prefs.widget());
     }
 
     fn apply_pref(&mut self, change: PrefChange) {
