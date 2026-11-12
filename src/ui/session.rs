@@ -535,9 +535,9 @@ impl Component for Session {
             SessionInput::ToggleFullscreen => {
                 if let Some(window) = window_of(root) {
                     if self.fullscreen.get() {
-                        window.unfullscreen();
+                        crate::platform::leave_fullscreen_for_session(&window);
                     } else {
-                        window.fullscreen();
+                        crate::platform::fullscreen_for_session(&window);
                         self.display.grab_focus();
                     }
                 }
@@ -774,11 +774,15 @@ impl Session {
         }
         let input = sender.input_sender().clone();
         window.connect_fullscreened_notify(move |window| {
-            input.emit(SessionInput::FullscreenChanged(window.is_fullscreen()));
+            input.emit(SessionInput::FullscreenChanged(
+                crate::platform::is_fullscreen_for_session(window),
+            ));
         });
-        sender.input(SessionInput::FullscreenChanged(window.is_fullscreen()));
+        sender.input(SessionInput::FullscreenChanged(
+            crate::platform::is_fullscreen_for_session(&window),
+        ));
         if self.fullscreen_pending && self.watched.is_none() {
-            window.fullscreen();
+            crate::platform::fullscreen_for_session(&window);
             let input = sender.input_sender().clone();
             glib::timeout_add_local_once(std::time::Duration::from_secs(2), move || {
                 input.emit(SessionInput::FullscreenWaited);
@@ -791,7 +795,7 @@ impl Session {
         if self.fullscreen.get()
             && let Some(window) = window_of(root)
         {
-            window.unfullscreen();
+            crate::platform::leave_fullscreen_for_session(&window);
         }
     }
 

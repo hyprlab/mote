@@ -424,19 +424,22 @@ impl Component for AppModel {
         root.add_breakpoint(narrow);
 
         // Fullscreen is for a session: the sidebar steps aside meanwhile.
-        let sidebar_before = Cell::new(true);
+        let sidebar_before = Cell::new(None);
         root.connect_fullscreened_notify(glib::clone!(
             #[weak]
             split,
             move |window| {
-                if window.is_fullscreen() {
-                    sidebar_before.set(split.shows_sidebar());
+                if crate::platform::is_fullscreen_for_session(window) {
+                    if sidebar_before.get().is_none() {
+                        sidebar_before.set(Some(split.shows_sidebar()));
+                    }
                     split.set_show_sidebar(false);
-                } else {
-                    split.set_show_sidebar(sidebar_before.get());
+                } else if let Some(shown) = sidebar_before.take() {
+                    split.set_show_sidebar(shown);
                 }
             }
         ));
+        crate::platform::keep_own_fullscreen(&root);
         actions::install(&root, &sender, model.settings.sort);
         model.rebuild_list();
         model.arm_showcase(&sender);

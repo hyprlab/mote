@@ -14,6 +14,40 @@ pub(crate) fn present(window: &impl IsA<gtk::Window>) {
     window.present();
 }
 
+/// The main window: on macOS, making it fullscreen with the green button
+/// gives a bigger window, sidebar and all, not a session's fullscreen (see
+/// `macos::fullscreen`). GNOME's fullscreen is always a session's.
+pub(crate) fn keep_own_fullscreen(window: &impl IsA<gtk::Window>) {
+    #[cfg(target_os = "macos")]
+    crate::macos::fullscreen::keep_own(window.as_ref());
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+}
+
+/// Fullscreen for the session in the window.
+pub(crate) fn fullscreen_for_session(window: &impl IsA<gtk::Window>) {
+    #[cfg(target_os = "macos")]
+    crate::macos::fullscreen::enter(window.as_ref());
+    #[cfg(not(target_os = "macos"))]
+    window.fullscreen();
+}
+
+/// Leave the session's fullscreen.
+pub(crate) fn leave_fullscreen_for_session(window: &impl IsA<gtk::Window>) {
+    #[cfg(target_os = "macos")]
+    crate::macos::fullscreen::leave(window.as_ref());
+    #[cfg(not(target_os = "macos"))]
+    window.unfullscreen();
+}
+
+/// Whether the window is fullscreen for the session in it.
+pub(crate) fn is_fullscreen_for_session(window: &impl IsA<gtk::Window>) -> bool {
+    #[cfg(target_os = "macos")]
+    return crate::macos::fullscreen::for_session(window.as_ref());
+    #[cfg(not(target_os = "macos"))]
+    window.is_fullscreen()
+}
+
 /// A shortcut as the platform writes it: `<Control>` is Command on macOS.
 /// GTK's `<Primary>` would be Ctrl there too.
 pub(crate) fn accel(accel: &str) -> String {
