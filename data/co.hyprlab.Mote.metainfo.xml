@@ -64,6 +64,11 @@
   </supports>
 
   <releases>
+    <release version="1.5.1" date="2026-11-12" type="stable">
+      <description>
+        <p>On macOS a new window appears already drawn, rather than its shadow first, and About opens again at once.</p>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-11-11" type="stable">
       <description>
         <p>Mote has a macOS app, which updates itself. The app has a new icon. The French translation is up to date.</p>
