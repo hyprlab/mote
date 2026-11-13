@@ -75,7 +75,7 @@ tool. The maintainer decides what gets built, reviews the results, tests every
 release and signs off on everything that ships. The app itself contains no AI
 and makes no requests to AI services.
 
-The app icon was made by Jason M (@hyprlab) in Blender.
+The app icon was made by Jason M (hyprlab) in Blender.
 
 Bug reports and pull requests are welcome whether or not AI tools were
 involved, and everything merged is reviewed by a person.
