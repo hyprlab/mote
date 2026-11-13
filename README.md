@@ -4,7 +4,7 @@
 
 # Mote
 
-A GNOME-native RDP and VNC client specifically designed for connecting to Linux desktops. Full support for GNOME Remote Desktop, xrdp, KRdp, TigerVNC and wayvnc, and for Macs through macOS Screen Sharing.
+A GNOME-native RDP and VNC client specifically designed for connecting to Linux desktops. Full support for GNOME Remote Desktop, xrdp, KRdp, TigerVNC and wayvnc, and for Macs through macOS Screen Sharing. Available for Linux and macOS
 
 <p align="center">
   <picture>
