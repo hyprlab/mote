@@ -13,12 +13,6 @@ A GNOME-native RDP and VNC client specifically designed for connecting to Linux 
   </picture>
 </p>
 
-Mote has been stable since 1.0. It is built in sections, each one finished
-and tested against a real server before the next starts; what each section
-holds, and what is still to come, is in [docs/ROADMAP.md](docs/ROADMAP.md).
-What each release brought is in
-[docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md).
-
 ## Goals
 
 - Linux machines first: GNOME Remote Desktop (Desktop Sharing and Remote
