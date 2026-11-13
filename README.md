@@ -15,28 +15,23 @@ A GNOME-native RDP and VNC client specifically designed for connecting to Linux 
 
 ## Goals
 
-- Linux machines first: GNOME Remote Desktop (Desktop Sharing and Remote
+- Linux machines first: Mote is built and tested against GNOME Remote Desktop (Desktop Sharing and Remote
   Login), xrdp and KRdp over RDP, and GNOME Remote Desktop, TigerVNC and
-  wayvnc over VNC, are what Mote is built and tested against. Mote has not
-  been tested against a Windows machine.
-- Macs as well: macOS Screen Sharing over VNC, signed in and encrypted the
-  way Apple's own viewer is, with the sign-in each macOS version takes
-  chosen without being told.
-- Everything Remmina's RDP and VNC plugins do that a Linux server takes, in
-  a GNOME-native interface: a session opens beside the connections, and
-  moves to a window of its own or goes fullscreen, on one monitor or all.
-- Sharp on HiDPI displays: the remote desktop follows the local scale factor,
-  fractional scaling included, and resizes with the window.
+  wayvnc over VNC. 
+- Mac compatibility: Tested against macOS Screen Sharing over VNC signed in and encrypted.
+  Will automatically choose the correct, most compatible settings based on the macOS version.
+- Match Remmina's RDP and VNC plugins in a GNOME-native interface.
+- Sharp on HiDPI displays: the remote desktop follows the local scale factor including fractional scaling. 
+  Automatic resizing of the remote resolution with a compatible session.
 - Clipboard sharing in both directions: text, rich text, images and files
   over RDP, and text over VNC.
 - Encrypted by default: a VNC server that offers no encryption stops the
-  connection before the password goes out, unless the connection allows it.
-- Fast: H.264 decoding through FFmpeg or OpenH264, for RDP's graphics
-  pipeline and wayvnc's Open H.264, and no work on the main thread that the
+  connection before the password goes out. This can be overridden on a per-connection basis.
+- Fast: RDP H.264 decoding through FFmpeg or OpenH264.
+  VNC encoding through wayvnc's Open H.264. No work is performed on the main thread that the
   display does not need.
-- A small memory footprint, so a session costs little beside the rest of
-  the desktop.
-- Settings per connection, with defaults that suit a Linux server.
+- A small memory footprint targeted below 500MB. Expect memory footprints around 350MB on the RPM/DEB package.
+- Settings per connection with defaults that suit a Linux RDP/VNC server.
 
 ## Installing
 
