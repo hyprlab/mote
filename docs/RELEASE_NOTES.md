@@ -4,6 +4,12 @@ A remote desktop client for GNOME, for Linux machines that run GNOME Remote
 Desktop, xrdp, KRdp or a VNC server, and for Macs. Each section below is
 what a release brought; the detail is in the commit history.
 
+## What's new in 1.5.3
+
+### Fixes:
+
+- About and Settings on macOS went fullscreen over a fullscreen session
+
 ## What's new in 1.5.2
 
 ### Fixes:
