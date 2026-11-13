@@ -802,10 +802,12 @@ impl AppModel {
 
     fn open_settings(&mut self, sender: &ComponentSender<Self>, root: &adw::ApplicationWindow) {
         let prefs = self.prefs.get_or_insert_with(|| {
-            Preferences::builder()
+            let prefs = Preferences::builder()
                 .transient_for(root)
                 .launch(self.settings.clone())
-                .forward(sender.input_sender(), AppMsg::Pref)
+                .forward(sender.input_sender(), AppMsg::Pref);
+            crate::platform::keep_windowed(prefs.widget());
+            prefs
         });
         crate::platform::present(prefs.widget());
     }

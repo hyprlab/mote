@@ -317,6 +317,7 @@ pub(super) fn present(parent: &adw::ApplicationWindow) {
     nav.add(&notes::page());
 
     window.set_content(Some(&nav));
+    crate::platform::keep_windowed(&window);
     #[cfg(target_os = "macos")]
     {
         window.set_hide_on_close(true);

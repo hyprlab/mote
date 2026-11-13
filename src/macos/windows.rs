@@ -65,16 +65,49 @@ pub(crate) fn present(window: &gtk::Window) {
     window.present();
 }
 
+/// NSWindowCollectionBehaviorFullScreenAuxiliary.
+const FULL_SCREEN_AUXILIARY: usize = 1 << 8;
+/// NSWindowTabbingModeDisallowed.
+const TABBING_DISALLOWED: isize = 2;
+
+/// A window beside the main one, such as About or Settings, that stays a
+/// window when the main window is fullscreen. GTK makes every window one
+/// that can be fullscreen by itself, and attaches a transient window to its
+/// parent as a child window as it realizes it. AppKit gives a child of a
+/// fullscreen window that can be fullscreen the fullscreen style, so About
+/// opened over a fullscreen session filled a space of its own, with no way
+/// to close it. Made an auxiliary window before it is attached, it floats
+/// over the fullscreen space instead, never joins a window as a tab, and
+/// its green button zooms.
+pub(crate) fn keep_windowed(window: &gtk::Window) {
+    let parent = window.transient_for();
+    window.set_transient_for(None::<&gtk::Window>);
+    WidgetExt::realize(window);
+    // SAFETY: plain property setters on the window's own NSWindow, on the
+    // main thread.
+    with_native(window, |ns| unsafe {
+        let _: () = msg_send![ns, setCollectionBehavior: FULL_SCREEN_AUXILIARY];
+        let _: () = msg_send![ns, setTabbingMode: TABBING_DISALLOWED];
+    });
+    window.set_transient_for(parent.as_ref());
+}
+
 fn set_alpha(window: &gtk::Window, alpha: f64) {
+    // SAFETY: as above.
+    with_native(window, |ns| unsafe {
+        let _: () = msg_send![ns, setAlphaValue: alpha];
+    });
+}
+
+/// Run `f` on the NSWindow behind a realized window.
+fn with_native(window: &gtk::Window, f: impl FnOnce(&AnyObject)) {
     let Some(surface) = window.surface() else {
         return;
     };
     // SAFETY: the surface is a live GdkMacosSurface (the only kind GTK
     // makes on macOS), and its NSWindow lives as long as it does.
-    unsafe {
-        let ns = gdk_macos_surface_get_native_window(surface.to_glib_none().0);
-        if let Some(ns) = ns.as_ref() {
-            let _: () = msg_send![ns, setAlphaValue: alpha];
-        }
+    let ns = unsafe { gdk_macos_surface_get_native_window(surface.to_glib_none().0).as_ref() };
+    if let Some(ns) = ns {
+        f(ns);
     }
 }

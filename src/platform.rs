@@ -14,6 +14,16 @@ pub(crate) fn present(window: &impl IsA<gtk::Window>) {
     window.present();
 }
 
+/// A window beside the main one, such as About or Settings: on macOS it
+/// stays a window over a fullscreen one rather than going fullscreen with
+/// it (see `macos::windows`). GNOME has nothing to change.
+pub(crate) fn keep_windowed(window: &impl IsA<gtk::Window>) {
+    #[cfg(target_os = "macos")]
+    crate::macos::windows::keep_windowed(window.as_ref());
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+}
+
 /// The main window: on macOS, making it fullscreen with the green button
 /// gives a bigger window, sidebar and all, not a session's fullscreen (see
 /// `macos::fullscreen`). GNOME's fullscreen is always a session's.

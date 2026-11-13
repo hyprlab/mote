@@ -199,6 +199,7 @@ impl Info {
             .content(&view)
             .build();
         window.add_css_class("session-info");
+        crate::platform::keep_windowed(&window);
         // Escape closes it, as it closed the popover it was.
         let keys = gtk::ShortcutController::new();
         keys.add_shortcut(gtk::Shortcut::new(
