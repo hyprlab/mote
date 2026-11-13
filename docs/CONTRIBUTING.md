@@ -14,7 +14,9 @@ wrong, awkward or missing is worth as much as a patch.
   [po/README.md](../po/README.md), from the template to sending the file in.
 - **Design and UX:** GNOME HIG corrections, layout and wording feedback are
   welcome as issues.
-- **Code:** send a pull request; see below.
+- **Code:** send a pull request; see below. Mote is built in the sections
+  listed in [ROADMAP.md](ROADMAP.md), which says what each holds and what is
+  still to come.
 
 ## Pull requests
 
