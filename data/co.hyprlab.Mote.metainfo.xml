@@ -64,6 +64,11 @@
   </supports>
 
   <releases>
+    <release version="1.6.0" date="2026-11-14" type="stable">
+      <description>
+        <p>Mote speaks Italian.</p>
+      </description>
+    </release>
     <release version="1.5.3" date="2026-11-13" type="stable">
       <description>
         <p>On macOS About and Settings open as windows over a fullscreen session.</p>

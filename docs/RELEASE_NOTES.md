@@ -4,6 +4,12 @@ A remote desktop client for GNOME, for Linux machines that run GNOME Remote
 Desktop, xrdp, KRdp or a VNC server, and for Macs. Each section below is
 what a release brought; the detail is in the commit history.
 
+## What's new in 1.6.0
+
+### Translations:
+
+- Italian by @mrCabez - (#4)
+
 ## What's new in 1.5.3
 
 ### Fixes:
