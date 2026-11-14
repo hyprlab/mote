@@ -14,6 +14,17 @@ permissions:
   contents: read
 
 jobs:
+  credits:
+    name: Credits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Every author in the history, which a shallow clone doesn't have.
+          fetch-depth: 0
+      - name: Every credited person authored a commit
+        run: tools/check-credits.sh
+
   gnome:
     name: GNOME
     runs-on: ubuntu-latest

@@ -71,6 +71,22 @@ their profile, and not for the tools anyone wrote it with. The README's
 `tools/git-hooks/commit-msg` checks all of this; point a clone at the hooks with
 `git config core.hooksPath tools/git-hooks`.
 
+## Landing a contribution
+
+A pull request is usually landed by hand rather than merged, since its branch
+is often made against an older `main`, but the commit that lands it is still
+the contributor's: `git commit --author="<login>
+<<id>+<login>@users.noreply.github.com>"`, with the id from `gh api
+users/<login> --jq .id`, and the maintainer as committer. GitHub's contributor
+list counts commit authors only, so a `Co-Authored-By:` line on a commit of
+the maintainer's leaves the contributor out of it, and that can't be put right
+after a release without rewriting history. Changes of the maintainer's own on
+the way in go in a commit of their own.
+
+Everyone in `data/CONTRIBUTORS` and `data/TRANSLATORS` has to be the author of
+a commit: `tools/check-credits.sh` checks it, `tools/git-hooks/pre-push`
+refuses a push without it, and CI runs it on every push.
+
 ## Documentation
 
 Documentation lives in `docs/`, one subject per file, and the

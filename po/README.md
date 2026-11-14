@@ -91,9 +91,11 @@ is often made against an older `main`:
 3. Credit the translator in `data/TRANSLATORS` and in
    [CREDITS.md](../docs/CREDITS.md#translations).
 4. Commit as `feat(i18n): add the <Language> translation (#<n>)`, or
-   `fix(i18n): update the <Language> translation (#<n>)`, with a
-   `Co-Authored-By:` line for the translator's
-   `<id>+<login>@users.noreply.github.com` address
-   (`gh api users/<login> --jq .id`).
+   `fix(i18n): update the <Language> translation (#<n>)`, with the
+   translator as the author:
+   `git commit --author="<login> <<id>+<login>@users.noreply.github.com>"`
+   (`gh api users/<login> --jq .id`). A `Co-Authored-By:` line is not
+   enough: GitHub's contributor list counts authors only
+   ([CONTRIBUTING.md](../docs/CONTRIBUTING.md#landing-a-contribution)).
 5. Close the pull request with a comment: what was taken, what was changed
    on the way in, how many strings are left, and which beta carries it.

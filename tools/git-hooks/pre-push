@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Refuse a push that would put a credited contributor on GitHub without a
+# commit of their own, which leaves them out of its contributor list
+# (tools/check-credits.sh says why). Only branch pushes are checked; a tag
+# points at a commit some branch push already checked.
+set -euo pipefail
+
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha _remote_ref _remote_sha; do
+  case "$local_ref" in refs/heads/*) ;; *) continue ;; esac
+  [ "$local_sha" = "$zero" ] && continue
+  "$(git rev-parse --show-toplevel)/tools/check-credits.sh" "$local_sha" || status=1
+done
+exit "$status"
