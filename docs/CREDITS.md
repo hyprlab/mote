@@ -11,5 +11,7 @@ Every language Mote speaks was given to it by somebody:
 
 - **French:** [frenchy82](https://github.com/frenchy82)
   ([#1](https://github.com/hyprlab/mote/pull/1)), Mote's first translation
+- **Italian:** [mrCabez](https://github.com/mrCabez)
+  ([#4](https://github.com/hyprlab/mote/pull/4))
 
 Adding or updating one is the easiest way in: see [po/README.md](../po/README.md).
